@@ -146,7 +146,7 @@ contract ProtestExampleTest is Test {
         invitees[1] = supporter3;
 
         vm.prank(supporter1);
-        assemble.inviteFriends(eventId, invitees, "The planet needs us! Join the march!");
+        assemble.inviteFriends(eventId, invitees);
 
         console.log("Grassroots organizing: supporters inviting friends");
 
@@ -179,7 +179,7 @@ contract ProtestExampleTest is Test {
 
         uint256 ticket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
         vm.prank(supporter1);
-        assemble.checkIn(eventId, ticket1);
+        assemble.checkIn(eventId);
 
         assertTrue(assemble.hasAttended(supporter1, eventId));
         console.log("Protester attended and received activism badge!");

@@ -159,7 +159,7 @@ contract DinnerExampleTest is Test {
 
         uint256 ticket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
         vm.prank(diner1);
-        assemble.checkIn(eventId, ticket1);
+        assemble.checkIn(eventId);
 
         assertTrue(assemble.hasAttended(diner1, eventId));
         console.log("Diner attended and received culinary experience badge!");

@@ -166,13 +166,13 @@ contract DeploymentIntegrationTest is Test {
 
         // Check in to event
         vm.prank(attendee1);
-        assemble.checkIn(eventId, ticket1);
+        assemble.checkIn(eventId);
 
         vm.prank(attendee2);
-        assemble.checkIn(eventId, ticket2);
+        assemble.checkIn(eventId);
 
         vm.prank(attendee3);
-        assemble.checkIn(eventId, ticket3);
+        assemble.checkIn(eventId);
 
         // Verify attendance badges
         assertTrue(assemble.hasAttended(attendee1, eventId));

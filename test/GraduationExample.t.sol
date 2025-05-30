@@ -108,7 +108,7 @@ contract GraduationExampleTest is Test {
 
         uint256 ticket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
         vm.prank(family1);
-        assemble.checkIn(eventId, ticket1);
+        assemble.checkIn(eventId);
 
         assertTrue(assemble.hasAttended(family1, eventId));
         console.log("Family checked in and received graduation attendance badge!");

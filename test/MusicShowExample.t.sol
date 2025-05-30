@@ -152,10 +152,10 @@ contract MusicShowExampleTest is Test {
         uint256 vipTicket = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 2, 1);
 
         vm.prank(fan1);
-        assemble.checkIn(eventId, ticket1);
+        assemble.checkIn(eventId);
 
         vm.prank(fan2);
-        assemble.checkIn(eventId, vipTicket);
+        assemble.checkIn(eventId);
 
         assertTrue(assemble.hasAttended(fan1, eventId));
         assertTrue(assemble.hasAttended(fan2, eventId));

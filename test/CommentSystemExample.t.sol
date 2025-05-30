@@ -147,7 +147,7 @@ contract CommentSystemExampleTest is Test {
 
         // Organizer deletes the spam
         vm.prank(organizer);
-        assemble.deleteComment(1);
+        assemble.deleteComment(1, eventId);
 
         // Verify comment is marked as deleted
         CommentLibrary.Comment memory deletedComment = assemble.getComment(1);

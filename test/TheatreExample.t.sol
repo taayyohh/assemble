@@ -128,9 +128,9 @@ contract TheatreExampleTest is Test {
         // Show night attendance
         vm.warp(block.timestamp + 7 days);
 
-        uint256 ticket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 1, 1);
+        uint256 ticket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
         vm.prank(theatergoer1);
-        assemble.checkIn(eventId, ticket1);
+        assemble.checkIn(eventId);
 
         assertTrue(assemble.hasAttended(theatergoer1, eventId));
         console.log("Theatre patron attended and received show badge!");
