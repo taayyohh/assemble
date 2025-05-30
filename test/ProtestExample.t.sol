@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {Test, console} from "forge-std/Test.sol";
-import {Assemble} from "../src/Assemble.sol";
+import { Test, console } from "forge-std/Test.sol";
+import { Assemble } from "../src/Assemble.sol";
 
 /// @title Protest & Activism Example
 /// @notice Demonstrates free protest events with donations to causes and organizing funds
 /// @author @taayyohh
 contract ProtestExampleTest is Test {
     Assemble public assemble;
-    
+
     address public activist = makeAddr("activist");
     address public organization = makeAddr("organization");
     address public legalFund = makeAddr("legalFund");
@@ -17,20 +17,20 @@ contract ProtestExampleTest is Test {
     address public supporter1 = makeAddr("supporter1");
     address public supporter2 = makeAddr("supporter2");
     address public supporter3 = makeAddr("supporter3");
-    
+
     function setUp() public {
         assemble = new Assemble(address(this));
-        
+
         // Fund supporters
         vm.deal(supporter1, 2 ether);
         vm.deal(supporter2, 2 ether);
         vm.deal(supporter3, 2 ether);
     }
-    
+
     function test_ClimateActionProtest() public {
         console.log("\n=== Climate Action Protest Example ===");
         console.log("Free public demonstration with donations to environmental causes");
-        
+
         // Create protest event
         Assemble.EventParams memory params = Assemble.EventParams({
             title: "March for Climate Justice",
@@ -38,11 +38,11 @@ contract ProtestExampleTest is Test {
             imageUri: "ipfs://climate-march",
             startTime: block.timestamp + 14 days,
             endTime: block.timestamp + 14 days + 4 hours,
-            capacity: 10000, // Large public gathering
+            capacity: 10_000, // Large public gathering
             venueId: 1,
             visibility: Assemble.EventVisibility.PUBLIC
         });
-        
+
         // Free participation with optional support tiers
         Assemble.TicketTier[] memory tiers = new Assemble.TicketTier[](4);
         tiers[0] = Assemble.TicketTier({
@@ -53,7 +53,7 @@ contract ProtestExampleTest is Test {
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 13 days,
             transferrable: false // Personal commitment
-        });
+         });
         tiers[1] = Assemble.TicketTier({
             name: "Support Organizers",
             price: 0.01 ether, // $15 to cover organizing costs
@@ -81,114 +81,114 @@ contract ProtestExampleTest is Test {
             endSaleTime: block.timestamp + 13 days,
             transferrable: false
         });
-        
+
         // Cause-focused payment splits
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](4);
-        splits[0] = Assemble.PaymentSplit(organization, 4000, "environmental_org");  // 40%
-        splits[1] = Assemble.PaymentSplit(legalFund, 3000, "legal_observers");       // 30%
-        splits[2] = Assemble.PaymentSplit(mutualAid, 2000, "community_support");     // 20%
-        splits[3] = Assemble.PaymentSplit(activist, 1000, "organizing_costs");       // 10%
-        
+        splits[0] = Assemble.PaymentSplit(organization, 4000, "environmental_org"); // 40%
+        splits[1] = Assemble.PaymentSplit(legalFund, 3000, "legal_observers"); // 30%
+        splits[2] = Assemble.PaymentSplit(mutualAid, 2000, "community_support"); // 20%
+        splits[3] = Assemble.PaymentSplit(activist, 1000, "organizing_costs"); // 10%
+
         vm.prank(activist);
         uint256 eventId = assemble.createEvent(params, tiers, splits);
-        
+
         console.log("Climate protest organized!");
         console.log("Donations: 40% env org, 30% legal fund, 20% mutual aid, 10% organizing");
-        
+
         // Supporters join and contribute
         vm.prank(supporter1);
-        assemble.purchaseTickets{value: 0}(eventId, 0, 1); // Free participation
-        
+        assemble.purchaseTickets{ value: 0 }(eventId, 0, 1); // Free participation
+
         vm.prank(supporter1);
         assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
-        
+
         // Use generous amounts to cover dynamic pricing
         vm.prank(supporter2);
-        assemble.purchaseTickets{value: 0.1 ether}(eventId, 2, 1); // Very generous buffer
-        
+        assemble.purchaseTickets{ value: 0.1 ether }(eventId, 2, 1); // Very generous buffer
+
         vm.prank(supporter2);
         assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
-        
+
         vm.prank(supporter3);
-        assemble.purchaseTickets{value: 0.3 ether}(eventId, 3, 1); // Very generous buffer
-        
+        assemble.purchaseTickets{ value: 0.3 ether }(eventId, 3, 1); // Very generous buffer
+
         vm.prank(supporter3);
         assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
-        
+
         console.log("Supporters registered:");
         console.log("  Free participant confirmed");
         console.log("  Legal fund supporter");
         console.log("  Climate action sponsor");
-        
+
         // Social organizing - building movement
         vm.prank(supporter1);
         assemble.addFriend(supporter2);
-        
+
         vm.prank(supporter2);
         assemble.addFriend(supporter1);
-        
+
         vm.prank(supporter1);
         assemble.addFriend(supporter3);
-        
+
         vm.prank(supporter3);
         assemble.addFriend(supporter1);
-        
+
         vm.prank(supporter2);
         assemble.addFriend(supporter3);
-        
+
         vm.prank(supporter3);
         assemble.addFriend(supporter2);
-        
+
         // Supporters invite more people
         address[] memory invitees = new address[](2);
         invitees[0] = supporter2;
         invitees[1] = supporter3;
-        
+
         vm.prank(supporter1);
         assemble.inviteFriends(eventId, invitees, "The planet needs us! Join the march!");
-        
+
         console.log("Grassroots organizing: supporters inviting friends");
-        
+
         // Additional donations for the cause
         vm.prank(supporter1);
-        assemble.tipEvent{value: 0.05 ether}(eventId); // Extra donation
-        
+        assemble.tipEvent{ value: 0.05 ether }(eventId); // Extra donation
+
         console.log("Additional donation sent to climate causes!");
-        
+
         // Check cause funding
         uint256 totalDonations = 0.1 ether + 0.3 ether + 0.05 ether; // All contributions
-        uint256 protocolFee = (totalDonations * 50) / 10000;
+        uint256 protocolFee = (totalDonations * 50) / 10_000;
         uint256 netDonations = totalDonations - protocolFee;
-        
-        uint256 orgFunding = (netDonations * 4000) / 10000;
-        uint256 legalFunding = (netDonations * 3000) / 10000;
-        uint256 mutualAidFunding = (netDonations * 2000) / 10000;
-        
+
+        uint256 orgFunding = (netDonations * 4000) / 10_000;
+        uint256 legalFunding = (netDonations * 3000) / 10_000;
+        uint256 mutualAidFunding = (netDonations * 2000) / 10_000;
+
         assertGt(assemble.pendingWithdrawals(organization), 0);
         assertGt(assemble.pendingWithdrawals(legalFund), 0);
         assertGt(assemble.pendingWithdrawals(mutualAid), 0);
-        
+
         console.log("Cause funding allocated:");
         console.log("  Environmental org:", orgFunding);
         console.log("  Legal observers:", legalFunding);
         console.log("  Mutual aid:", mutualAidFunding);
-        
+
         // Protest day participation
         vm.warp(block.timestamp + 14 days);
-        
-        uint256 ticket1 = assemble._generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
+
+        uint256 ticket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
         vm.prank(supporter1);
         assemble.checkIn(eventId, ticket1);
-        
+
         assertTrue(assemble.hasAttended(supporter1, eventId));
         console.log("Protester attended and received activism badge!");
         console.log("Fighting for our future! The movement grows stronger!");
     }
-    
+
     function test_SocialJusticeRally() public {
         console.log("\n=== Social Justice Rally Example ===");
         console.log("Community rally with bail fund and organizing support");
-        
+
         // Social justice event
         Assemble.EventParams memory params = Assemble.EventParams({
             title: "Rally for Justice and Equality",
@@ -200,7 +200,7 @@ contract ProtestExampleTest is Test {
             venueId: 1,
             visibility: Assemble.EventVisibility.PUBLIC
         });
-        
+
         // Justice-focused support tiers
         Assemble.TicketTier[] memory tiers = new Assemble.TicketTier[](3);
         tiers[0] = Assemble.TicketTier({
@@ -230,29 +230,29 @@ contract ProtestExampleTest is Test {
             endSaleTime: block.timestamp + 6 days,
             transferrable: false
         });
-        
+
         // Justice movement funding
         address bailFund = makeAddr("bailFund");
         address communityOrg = makeAddr("communityOrg");
         address defenseCoalition = makeAddr("defenseCoalition");
-        
+
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](3);
-        splits[0] = Assemble.PaymentSplit(bailFund, 5000, "bail_fund");           // 50%
-        splits[1] = Assemble.PaymentSplit(communityOrg, 3000, "community_org");   // 30%
+        splits[0] = Assemble.PaymentSplit(bailFund, 5000, "bail_fund"); // 50%
+        splits[1] = Assemble.PaymentSplit(communityOrg, 3000, "community_org"); // 30%
         splits[2] = Assemble.PaymentSplit(defenseCoalition, 2000, "legal_defense"); // 20%
-        
+
         vm.prank(activist);
         uint256 eventId = assemble.createEvent(params, tiers, splits);
-        
+
         console.log("Social justice rally organized!");
         console.log("Funds: 50% bail fund, 30% community org, 20% legal defense");
         console.log("Building power for systemic change!");
     }
-    
+
     function test_MutualAidNetwork() public {
         console.log("\n=== Mutual Aid Network Example ===");
         console.log("Community care event connecting resources and support");
-        
+
         // Mutual aid organizing event
         Assemble.EventParams memory params = Assemble.EventParams({
             title: "Community Care Resource Fair",
@@ -264,7 +264,7 @@ contract ProtestExampleTest is Test {
             venueId: 1,
             visibility: Assemble.EventVisibility.PUBLIC
         });
-        
+
         // Resource sharing tiers
         Assemble.TicketTier[] memory tiers = new Assemble.TicketTier[](2);
         tiers[0] = Assemble.TicketTier({
@@ -277,7 +277,7 @@ contract ProtestExampleTest is Test {
             transferrable: false
         });
         tiers[1] = Assemble.TicketTier({
-            name: "Resource Contributor", 
+            name: "Resource Contributor",
             price: 0.02 ether, // $30 mutual aid fund
             maxSupply: 50,
             sold: 0,
@@ -285,17 +285,17 @@ contract ProtestExampleTest is Test {
             endSaleTime: block.timestamp + 2 days,
             transferrable: false
         });
-        
+
         // Community-first splits
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](2);
-        splits[0] = Assemble.PaymentSplit(mutualAid, 8000, "emergency_fund");      // 80%
+        splits[0] = Assemble.PaymentSplit(mutualAid, 8000, "emergency_fund"); // 80%
         splits[1] = Assemble.PaymentSplit(activist, 2000, "organizing_materials"); // 20%
-        
+
         vm.prank(activist);
         uint256 eventId = assemble.createEvent(params, tiers, splits);
-        
+
         console.log("Mutual aid network launched!");
         console.log("Community care: 80% emergency fund, 20% organizing materials");
         console.log("Neighbors helping neighbors!");
     }
-} 
+}

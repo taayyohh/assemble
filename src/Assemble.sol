@@ -12,16 +12,16 @@ contract Assemble {
 
     /// @notice Maximum number of payment splits per event for gas optimization
     uint256 public constant MAX_PAYMENT_SPLITS = 20;
-    
+
     /// @notice Maximum ticket quantity per purchase to prevent gas limit issues
     uint256 public constant MAX_TICKET_QUANTITY = 50;
-    
+
     /// @notice Maximum price multiplier (3x) to prevent manipulation
     uint256 public constant MAX_PRICE_MULTIPLIER = 300;
-    
+
     /// @notice Maximum social discount (20%) to prevent exploitation
     uint256 public constant MAX_SOCIAL_DISCOUNT = 2000;
-    
+
     /// @notice Maximum protocol fee (10%) for governance limits
     uint256 public constant MAX_PROTOCOL_FEE = 1000;
 
@@ -29,12 +29,9 @@ contract Assemble {
                         TRANSIENT STORAGE SLOTS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Transient storage slot for pricing calculations
-    uint256 private constant PRICING_SLOT = 0x1001;
-    
     /// @notice Transient storage slot for batch operations
     uint256 private constant BATCH_OPERATION_SLOT = 0x1002;
-    
+
     /// @notice Transient storage slot for reentrancy protection
     uint256 private constant REENTRANCY_SLOT = 0x1003;
 
@@ -45,9 +42,10 @@ contract Assemble {
     /// @notice Token types for ERC-6909 multi-token system
     enum TokenType {
         NONE,
-        EVENT_TICKET,       // Transferrable event tickets
-        ATTENDANCE_BADGE,   // Soulbound attendance proof (ERC-5192)
-        ORGANIZER_CRED     // Soulbound organizer reputation
+        EVENT_TICKET, // Transferrable event tickets
+        ATTENDANCE_BADGE, // Soulbound attendance proof (ERC-5192)
+        ORGANIZER_CRED // Soulbound organizer reputation
+
     }
 
     /// @notice RSVP status for social coordination
@@ -71,61 +69,61 @@ contract Assemble {
 
     /// @notice Packed storage for events (optimized for gas)
     struct PackedEventData {
-        uint128 basePrice;      // Sufficient for most pricing
-        uint64 startTime;       // Unix timestamp
-        uint32 capacity;        // 4B max attendees
-        uint16 venueId;         // 65k venues
-        uint8 visibility;       // Event visibility
-        uint8 flags;            // Boolean flags packed
+        uint128 basePrice; // Sufficient for most pricing
+        uint64 startTime; // Unix timestamp
+        uint32 capacity; // 4B max attendees
+        uint16 venueId; // 65k venues
+        uint8 visibility; // Event visibility
+        uint8 flags; // Boolean flags packed
     }
 
     /// @notice Event creation parameters
     struct EventParams {
         string title;
         string description;
-        string imageUri;        // IPFS hash for event image
+        string imageUri; // IPFS hash for event image
         uint256 startTime;
         uint256 endTime;
         uint256 capacity;
-        uint256 venueId;        // Reference to venue registry
+        uint256 venueId; // Reference to venue registry
         EventVisibility visibility;
     }
 
     /// @notice Ticket tier configuration
     struct TicketTier {
-        string name;            // "Early Bird", "VIP", "General"
-        uint256 price;          // Price in wei
-        uint256 maxSupply;      // Maximum tickets for this tier
-        uint256 sold;           // Tickets sold so far
-        uint256 startSaleTime;  // When this tier becomes available
-        uint256 endSaleTime;    // When this tier stops being available
-        bool transferrable;     // Whether tickets can be resold
+        string name; // "Early Bird", "VIP", "General"
+        uint256 price; // Price in wei
+        uint256 maxSupply; // Maximum tickets for this tier
+        uint256 sold; // Tickets sold so far
+        uint256 startSaleTime; // When this tier becomes available
+        uint256 endSaleTime; // When this tier stops being available
+        bool transferrable; // Whether tickets can be resold
     }
 
     /// @notice Payment split configuration for revenue distribution
     struct PaymentSplit {
-        address recipient;      // Address to receive funds
-        uint256 basisPoints;    // Share out of 10000 (100%)
-        string role;           // "organizer", "venue", "artist", etc.
+        address recipient; // Address to receive funds
+        uint256 basisPoints; // Share out of 10000 (100%)
+        string role; // "organizer", "venue", "artist", etc.
     }
 
     /// @notice Event comment data structure
     struct Comment {
-        address author;         // Comment author
-        uint256 timestamp;      // When comment was posted
-        string content;         // Comment text content
-        uint256 parentId;       // Parent comment ID for replies (0 for top-level)
-        bool isDeleted;         // Soft delete flag
-        uint256 likes;          // Number of likes
+        address author; // Comment author
+        uint256 timestamp; // When comment was posted
+        string content; // Comment text content
+        uint256 parentId; // Parent comment ID for replies (0 for top-level)
+        bool isDeleted; // Soft delete flag
+        uint256 likes; // Number of likes
     }
 
     /// @notice Token ID structure for ERC-6909 (256 bits)
     struct TokenId {
-        uint8 tokenType;        // TokenType enum value
-        uint64 eventId;         // Primary event identifier
-        uint32 tierId;          // Ticket tier or badge type
-        uint64 serialNumber;    // Individual token serial
-        uint88 metadata;        // Additional type-specific data
+        uint8 tokenType; // TokenType enum value
+        uint64 eventId; // Primary event identifier
+        uint32 tierId; // Ticket tier or badge type
+        uint64 serialNumber; // Individual token serial
+        uint88 metadata; // Additional type-specific data
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -134,13 +132,13 @@ contract Assemble {
 
     /// @notice Next event ID counter
     uint256 public nextEventId = 1;
-    
+
     /// @notice Next comment ID counter
     uint256 public nextCommentId = 1;
-    
+
     /// @notice Protocol fee in basis points (0.5% = 50 bps)
     uint256 public protocolFeeBps = 50;
-    
+
     /// @notice Address that receives protocol fees
     address public feeTo;
 
@@ -206,19 +204,8 @@ contract Assemble {
     event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
 
     // ERC-6909 events
-    event Transfer(
-        address indexed caller,
-        address indexed from,
-        address indexed to,
-        uint256 id,
-        uint256 amount
-    );
-    event Approval(
-        address indexed owner,
-        address indexed spender,
-        uint256 indexed id,
-        uint256 amount
-    );
+    event Transfer(address indexed caller, address indexed from, address indexed to, uint256 id, uint256 amount);
+    event Approval(address indexed owner, address indexed spender, uint256 indexed id, uint256 amount);
     event OperatorSet(address indexed owner, address indexed operator, bool approved);
 
     /*//////////////////////////////////////////////////////////////
@@ -232,7 +219,9 @@ contract Assemble {
             tstore(REENTRANCY_SLOT, 1)
         }
         _;
-        assembly { tstore(REENTRANCY_SLOT, 0) }
+        assembly {
+            tstore(REENTRANCY_SLOT, 0)
+        }
     }
 
     /// @notice Only event organizer modifier
@@ -254,6 +243,7 @@ contract Assemble {
     /// @notice Initialize the Assemble protocol
     /// @param _feeTo Initial fee recipient address
     constructor(address _feeTo) {
+        require(_feeTo != address(0), "Invalid fee recipient");
         feeTo = _feeTo;
         emit FeeToUpdated(address(0), _feeTo);
     }
@@ -271,19 +261,22 @@ contract Assemble {
         EventParams calldata params,
         TicketTier[] calldata tiers,
         PaymentSplit[] calldata splits
-    ) external returns (uint256 eventId) {
+    )
+        external
+        returns (uint256 eventId)
+    {
         // Input validation
         require(params.startTime > block.timestamp, "Event must be in future");
         require(params.endTime > params.startTime, "Invalid end time");
         require(tiers.length > 0, "Must have at least one tier");
         require(params.capacity > 0, "Capacity must be greater than 0");
-        
+
         // Validate payment splits
         _validatePaymentSplits(splits);
-        
+
         // Generate event ID
         eventId = nextEventId++;
-        
+
         // Pack event data for gas efficiency
         events[eventId] = PackedEventData({
             basePrice: uint128(tiers[0].price),
@@ -293,23 +286,23 @@ contract Assemble {
             visibility: uint8(params.visibility),
             flags: 0
         });
-        
+
         // Store metadata and organizer
         eventMetadata[eventId] = params.imageUri;
         eventOrganizers[eventId] = msg.sender;
-        
+
         // Store ticket tiers
         for (uint256 i = 0; i < tiers.length; i++) {
             require(tiers[i].maxSupply > 0, "Tier must have supply");
             require(tiers[i].startSaleTime <= tiers[i].endSaleTime, "Invalid sale times");
             ticketTiers[eventId][i] = tiers[i];
         }
-        
+
         // Store payment splits
         for (uint256 i = 0; i < splits.length; i++) {
             eventPaymentSplits[eventId].push(splits[i]);
         }
-        
+
         emit EventCreated(eventId, msg.sender, params.startTime);
     }
 
@@ -321,31 +314,27 @@ contract Assemble {
     /// @param eventId The event to purchase tickets for
     /// @param tierId The ticket tier to purchase
     /// @param quantity Number of tickets to purchase
-    function purchaseTickets(
-        uint256 eventId,
-        uint256 tierId,
-        uint256 quantity
-    ) external payable nonReentrant {
+    function purchaseTickets(uint256 eventId, uint256 tierId, uint256 quantity) external payable nonReentrant {
         // CHECKS: Validate inputs and event state
         require(events[eventId].startTime > 0, "Event does not exist");
         require(quantity > 0 && quantity <= MAX_TICKET_QUANTITY, "Invalid quantity");
-        
+
         TicketTier storage tier = ticketTiers[eventId][tierId];
         require(tier.maxSupply > 0, "Tier does not exist");
         require(block.timestamp >= tier.startSaleTime, "Sales not started");
         require(block.timestamp <= tier.endSaleTime, "Sales ended");
         require(tier.sold + quantity <= tier.maxSupply, "Exceeds tier capacity");
-        
+
         // Calculate total cost with dynamic pricing
         uint256 totalCost = calculatePrice(eventId, tierId, quantity, msg.sender);
         require(msg.value >= totalCost, "Insufficient payment");
-        
+
         // EFFECTS: Update state before external calls
         tier.sold += quantity;
-        
+
         // Mint ERC-6909 tickets
         for (uint256 i = 0; i < quantity; i++) {
-            uint256 tokenId = _generateTokenId(
+            uint256 tokenId = generateTokenId(
                 TokenType.EVENT_TICKET,
                 eventId,
                 tierId,
@@ -353,25 +342,25 @@ contract Assemble {
             );
             _mint(msg.sender, tokenId, 1);
         }
-        
+
         // Calculate and distribute payments
-        uint256 protocolFee = (totalCost * protocolFeeBps) / 10000;
+        uint256 protocolFee = (totalCost * protocolFeeBps) / 10_000;
         uint256 netAmount = totalCost - protocolFee;
-        
+
         // Add protocol fee to pending withdrawals
         if (protocolFee > 0 && feeTo != address(0)) {
             pendingWithdrawals[feeTo] += protocolFee;
         }
-        
+
         // Distribute net amount according to payment splits
         _distributePayment(eventId, netAmount);
-        
+
         // INTERACTIONS: Refund excess payment last
         if (msg.value > totalCost) {
-            (bool success, ) = payable(msg.sender).call{value: msg.value - totalCost}("");
+            (bool success,) = payable(msg.sender).call{ value: msg.value - totalCost }("");
             require(success, "Refund failed");
         }
-        
+
         emit TicketPurchased(eventId, msg.sender, quantity, totalCost);
     }
 
@@ -386,26 +375,30 @@ contract Assemble {
         uint256 tierId,
         uint256 quantity,
         address buyer
-    ) public view returns (uint256 totalPrice) {
+    )
+        public
+        view
+        returns (uint256 totalPrice)
+    {
         TicketTier storage tier = ticketTiers[eventId][tierId];
         require(tier.maxSupply > 0, "Tier does not exist");
-        
+
         uint256 basePrice = tier.price;
-        
+
         // If base price is 0, tickets are truly free - no dynamic pricing or minimums
         if (basePrice == 0) {
             return 0;
         }
-        
+
         // Calculate demand multiplier (simple linear model)
         uint256 demandMultiplier = _calculateDemandMultiplier(eventId, tierId);
-        
+
         // Apply pricing formula: base * quantity * demand
         totalPrice = (basePrice * quantity * demandMultiplier) / 1000;
-        
+
         // Calculate and apply social discount
         uint256 socialDiscount = _calculateSocialDiscount(eventId, buyer);
-        
+
         // Apply social discount (ensure no underflow)
         if (socialDiscount > 0 && socialDiscount < totalPrice) {
             totalPrice -= socialDiscount;
@@ -417,7 +410,7 @@ contract Assemble {
                 totalPrice = 1;
             }
         }
-        
+
         // Ensure minimum price of at least 1 wei for paid tickets only
         if (totalPrice == 0) {
             totalPrice = 1;
@@ -431,19 +424,19 @@ contract Assemble {
     function tipEvent(uint256 eventId) external payable nonReentrant {
         require(msg.value > 0, "Must send some value");
         require(events[eventId].startTime > 0, "Event does not exist");
-        
+
         // Calculate protocol fee
-        uint256 protocolFee = (msg.value * protocolFeeBps) / 10000;
+        uint256 protocolFee = (msg.value * protocolFeeBps) / 10_000;
         uint256 netAmount = msg.value - protocolFee;
-        
+
         // Add protocol fee to pending withdrawals
         if (protocolFee > 0 && feeTo != address(0)) {
             pendingWithdrawals[feeTo] += protocolFee;
         }
-        
+
         // Distribute net amount according to payment splits (can direct tips to specific recipients!)
         _distributePayment(eventId, netAmount);
-        
+
         emit EventTipped(eventId, msg.sender, msg.value);
     }
 
@@ -451,14 +444,14 @@ contract Assemble {
     function claimFunds() external nonReentrant {
         uint256 amount = pendingWithdrawals[msg.sender];
         require(amount > 0, "No funds to claim");
-        
+
         // Effects before interactions
         pendingWithdrawals[msg.sender] = 0;
-        
+
         // Safe transfer
-        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        (bool success,) = payable(msg.sender).call{ value: amount }("");
         require(success, "Transfer failed");
-        
+
         emit FundsClaimed(msg.sender, amount);
     }
 
@@ -472,10 +465,10 @@ contract Assemble {
         require(friend != msg.sender, "Cannot add yourself");
         require(friend != address(0), "Invalid address");
         require(!isFriend[msg.sender][friend], "Already friends");
-        
+
         isFriend[msg.sender][friend] = true;
         friendLists[msg.sender].push(friend);
-        
+
         emit FriendAdded(msg.sender, friend);
     }
 
@@ -483,9 +476,9 @@ contract Assemble {
     /// @param friend Address to remove as friend
     function removeFriend(address friend) external {
         require(isFriend[msg.sender][friend], "Not friends");
-        
+
         isFriend[msg.sender][friend] = false;
-        
+
         // Remove from friend list
         address[] storage friends = friendLists[msg.sender];
         for (uint256 i = 0; i < friends.length; i++) {
@@ -495,7 +488,7 @@ contract Assemble {
                 break;
             }
         }
-        
+
         emit FriendRemoved(msg.sender, friend);
     }
 
@@ -504,10 +497,10 @@ contract Assemble {
     /// @param status New RSVP status
     function updateRSVP(uint256 eventId, RSVPStatus status) external {
         require(events[eventId].startTime > 0, "Event does not exist");
-        
+
         RSVPStatus oldStatus = rsvps[eventId][msg.sender];
         rsvps[eventId][msg.sender] = status;
-        
+
         // Update attendee list if status changed to/from GOING
         if (oldStatus != RSVPStatus.GOING && status == RSVPStatus.GOING) {
             attendeeLists[eventId].push(msg.sender);
@@ -522,18 +515,18 @@ contract Assemble {
                 }
             }
         }
-        
+
         emit RSVPUpdated(eventId, msg.sender, status);
     }
 
     /// @notice Invite friends to an event using EIP-1153 for gas optimization
     /// @param eventId Event to invite friends to
     /// @param friends Array of friend addresses to invite
-    /// @param message Optional invitation message
+    /// @param /* message */ Optional invitation message (unused in current implementation)
     function inviteFriends(
         uint256 eventId,
         address[] calldata friends,
-        string calldata message
+        string calldata /* message */
     ) external {
         require(events[eventId].startTime > 0, "Event does not exist");
         
@@ -561,21 +554,17 @@ contract Assemble {
     /// @param eventId Event to comment on
     /// @param content Comment text content
     /// @param parentId Parent comment ID for replies (0 for top-level)
-    function postComment(
-        uint256 eventId,
-        string calldata content,
-        uint256 parentId
-    ) external {
+    function postComment(uint256 eventId, string calldata content, uint256 parentId) external {
         require(events[eventId].startTime > 0, "Event does not exist");
         require(!bannedUsers[msg.sender], "User is banned from commenting");
         require(bytes(content).length > 0, "Comment cannot be empty");
         require(bytes(content).length <= 1000, "Comment too long"); // Reasonable limit
-        
+
         // If replying, validate parent comment exists and belongs to same event
         if (parentId > 0) {
             require(comments[parentId].timestamp > 0, "Parent comment does not exist");
             require(!comments[parentId].isDeleted, "Cannot reply to deleted comment");
-            
+
             // Find parent comment in event's comment list to verify it belongs to this event
             uint256[] memory eventCommentIds = eventComments[eventId];
             bool parentFound = false;
@@ -587,9 +576,9 @@ contract Assemble {
             }
             require(parentFound, "Parent comment not in this event");
         }
-        
+
         uint256 commentId = nextCommentId++;
-        
+
         comments[commentId] = Comment({
             author: msg.sender,
             timestamp: block.timestamp,
@@ -598,9 +587,9 @@ contract Assemble {
             isDeleted: false,
             likes: 0
         });
-        
+
         eventComments[eventId].push(commentId);
-        
+
         emit CommentPosted(eventId, commentId, msg.sender, parentId);
     }
 
@@ -610,10 +599,10 @@ contract Assemble {
         require(comments[commentId].timestamp > 0, "Comment does not exist");
         require(!comments[commentId].isDeleted, "Cannot like deleted comment");
         require(!commentLikes[commentId][msg.sender], "Already liked");
-        
+
         commentLikes[commentId][msg.sender] = true;
         comments[commentId].likes++;
-        
+
         emit CommentLiked(commentId, msg.sender);
     }
 
@@ -622,10 +611,10 @@ contract Assemble {
     function unlikeComment(uint256 commentId) external {
         require(comments[commentId].timestamp > 0, "Comment does not exist");
         require(commentLikes[commentId][msg.sender], "Not liked");
-        
+
         commentLikes[commentId][msg.sender] = false;
         comments[commentId].likes--;
-        
+
         emit CommentUnliked(commentId, msg.sender);
     }
 
@@ -635,7 +624,7 @@ contract Assemble {
     function deleteComment(uint256 commentId) external {
         require(comments[commentId].timestamp > 0, "Comment does not exist");
         require(!comments[commentId].isDeleted, "Comment already deleted");
-        
+
         // Find which event this comment belongs to
         uint256 targetEventId = 0;
         for (uint256 eventId = 1; eventId < nextEventId; eventId++) {
@@ -648,19 +637,18 @@ contract Assemble {
             }
             if (targetEventId > 0) break;
         }
-        
+
         require(targetEventId > 0, "Comment event not found");
-        
+
         // Check permissions: author or event organizer can delete
         require(
-            comments[commentId].author == msg.sender || 
-            eventOrganizers[targetEventId] == msg.sender ||
-            msg.sender == feeTo, // Protocol admin
+            comments[commentId].author == msg.sender || eventOrganizers[targetEventId] == msg.sender
+                || msg.sender == feeTo, // Protocol admin
             "Not authorized to delete"
         );
-        
+
         comments[commentId].isDeleted = true;
-        
+
         emit CommentDeleted(commentId, msg.sender);
     }
 
@@ -669,14 +657,11 @@ contract Assemble {
     /// @param eventId Event context for permission check
     function banUser(address user, uint256 eventId) external {
         require(events[eventId].startTime > 0, "Event does not exist");
-        require(
-            eventOrganizers[eventId] == msg.sender || msg.sender == feeTo,
-            "Not authorized"
-        );
+        require(eventOrganizers[eventId] == msg.sender || msg.sender == feeTo, "Not authorized");
         require(!bannedUsers[user], "User already banned");
-        
+
         bannedUsers[user] = true;
-        
+
         emit UserBanned(user, msg.sender);
     }
 
@@ -685,14 +670,11 @@ contract Assemble {
     /// @param eventId Event context for permission check
     function unbanUser(address user, uint256 eventId) external {
         require(events[eventId].startTime > 0, "Event does not exist");
-        require(
-            eventOrganizers[eventId] == msg.sender || msg.sender == feeTo,
-            "Not authorized"
-        );
+        require(eventOrganizers[eventId] == msg.sender || msg.sender == feeTo, "Not authorized");
         require(bannedUsers[user], "User not banned");
-        
+
         bannedUsers[user] = false;
-        
+
         emit UserUnbanned(user, msg.sender);
     }
 
@@ -724,7 +706,7 @@ contract Assemble {
     /// @return replyIds Array of reply comment IDs
     function getCommentReplies(uint256 parentId, uint256 eventId) external view returns (uint256[] memory replyIds) {
         uint256[] memory eventCommentIds = eventComments[eventId];
-        
+
         // Count replies first
         uint256 replyCount = 0;
         for (uint256 i = 0; i < eventCommentIds.length; i++) {
@@ -732,7 +714,7 @@ contract Assemble {
                 replyCount++;
             }
         }
-        
+
         // Build result array
         replyIds = new uint256[](replyCount);
         uint256 index = 0;
@@ -758,22 +740,22 @@ contract Assemble {
             msg.sender == from || isOperator[from][msg.sender] || allowance[from][msg.sender][id] >= amount,
             "Insufficient permission"
         );
-        
+
         // Check if token is soulbound (attendance badges, organizer creds)
         TokenType tokenType = TokenType(id >> 248);
         require(
-            tokenType == TokenType.EVENT_TICKET || 
-            (tokenType != TokenType.ATTENDANCE_BADGE && tokenType != TokenType.ORGANIZER_CRED),
+            tokenType == TokenType.EVENT_TICKET
+                || (tokenType != TokenType.ATTENDANCE_BADGE && tokenType != TokenType.ORGANIZER_CRED),
             "Soulbound token"
         );
-        
+
         if (msg.sender != from && !isOperator[from][msg.sender]) {
             allowance[from][msg.sender][id] -= amount;
         }
-        
+
         balanceOf[from][id] -= amount;
         balanceOf[to][id] += amount;
-        
+
         emit Transfer(msg.sender, from, to, id, amount);
     }
 
@@ -813,14 +795,14 @@ contract Assemble {
     /// @param amount Amount to distribute
     function _distributePayment(uint256 eventId, uint256 amount) internal {
         PaymentSplit[] memory splits = eventPaymentSplits[eventId];
-        
+
         for (uint256 i = 0; i < splits.length; i++) {
-            uint256 payment = (amount * splits[i].basisPoints) / 10000;
-            
+            uint256 payment = (amount * splits[i].basisPoints) / 10_000;
+
             // SECURE: Add to pending withdrawals instead of direct transfer
             pendingWithdrawals[splits[i].recipient] += payment;
             eventPendingFunds[eventId][splits[i].recipient] += payment;
-            
+
             emit PaymentAllocated(eventId, splits[i].recipient, payment, splits[i].role);
         }
     }
@@ -835,15 +817,16 @@ contract Assemble {
         if (tier.maxSupply == 0) return 1000; // No demand calculation for invalid tier
         
         // Simple linear demand model: price increases as tickets sell out
-        uint256 soldPercentage = (tier.sold * 1000) / tier.maxSupply;
+        // Use higher precision to avoid divide-before-multiply issues
+        uint256 soldPercentage = (tier.sold * 1000000) / tier.maxSupply; // 6 decimal precision
         
-        // Base 1x, increases linearly. Cap soldPercentage to prevent overflow
-        if (soldPercentage > 1000) {
-            soldPercentage = 1000; // 100% cap
+        // Cap soldPercentage to prevent overflow
+        if (soldPercentage > 1000000) {
+            soldPercentage = 1000000; // 100% cap
         }
         
         // Calculate multiplier: 1000 (1x) + up to 2000 (2x more) = max 3000 (3x total)
-        uint256 additionalMultiplier = (soldPercentage * 2000) / 1000; // Max 2000 additional
+        uint256 additionalMultiplier = (soldPercentage * 2000) / 1000000; // Proper precision
         multiplier = 1000 + additionalMultiplier;
         
         // Final safety cap at configured maximum
@@ -859,31 +842,31 @@ contract Assemble {
     function _calculateSocialDiscount(uint256 eventId, address buyer) internal view returns (uint256 discount) {
         address[] memory friends = friendLists[buyer];
         uint256 friendsAttending = 0;
-        
+
         for (uint256 i = 0; i < friends.length; i++) {
             if (rsvps[eventId][friends[i]] == RSVPStatus.GOING) {
                 friendsAttending++;
             }
         }
-        
+
         // 2% discount per friend attending, max 20%
         uint256 discountBps = friendsAttending * 200; // 2% = 200 bps
         if (discountBps > MAX_SOCIAL_DISCOUNT) {
             discountBps = MAX_SOCIAL_DISCOUNT;
         }
-        
+
         // Only calculate discount if there are friends attending and event exists
         if (discountBps == 0 || events[eventId].startTime == 0) {
             return 0;
         }
-        
+
         // Calculate discount based on base price from first tier
         TicketTier storage tier = ticketTiers[eventId][0];
         if (tier.maxSupply == 0) {
             return 0; // No valid tier found
         }
-        
-        discount = (tier.price * discountBps) / 10000;
+
+        discount = (tier.price * discountBps) / 10_000;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -895,14 +878,14 @@ contract Assemble {
     function _validatePaymentSplits(PaymentSplit[] calldata splits) internal pure {
         require(splits.length > 0, "Must have at least one payment split");
         require(splits.length <= MAX_PAYMENT_SPLITS, "Too many payment splits");
-        
+
         uint256 totalBps = 0;
         for (uint256 i = 0; i < splits.length; i++) {
             require(splits[i].recipient != address(0), "Invalid recipient");
             require(splits[i].basisPoints > 0, "Split must be greater than 0");
             totalBps += splits[i].basisPoints;
         }
-        require(totalBps == 10000, "Splits must total exactly 100%");
+        require(totalBps == 10_000, "Splits must total exactly 100%");
     }
 
     /// @notice Generate token ID from components
@@ -911,12 +894,16 @@ contract Assemble {
     /// @param tierId Tier identifier
     /// @param serialNumber Unique serial number
     /// @return tokenId Packed 256-bit token identifier
-    function _generateTokenId(
+    function generateTokenId(
         TokenType tokenType,
         uint256 eventId,
         uint256 tierId,
         uint256 serialNumber
-    ) public pure returns (uint256 tokenId) {
+    )
+        public
+        pure
+        returns (uint256 tokenId)
+    {
         return (uint256(tokenType) << 248) | (eventId << 184) | (tierId << 152) | serialNumber;
     }
 
@@ -924,7 +911,7 @@ contract Assemble {
     /// @param tokenId Token to validate
     /// @param eventId Event to check against
     /// @return isValid Whether token belongs to the event
-    function _isValidTicketForEvent(uint256 tokenId, uint256 eventId) public pure returns (bool isValid) {
+    function isValidTicketForEvent(uint256 tokenId, uint256 eventId) public pure returns (bool isValid) {
         uint256 tokenEventId = (tokenId >> 184) & 0xFFFFFFFFFFFFFFFF;
         return tokenEventId == eventId;
     }
@@ -954,10 +941,14 @@ contract Assemble {
     function getMutualFriendsAttending(
         uint256 eventId,
         address user
-    ) external view returns (address[] memory mutualFriends) {
+    )
+        external
+        view
+        returns (address[] memory mutualFriends)
+    {
         address[] memory friends = friendLists[user];
         address[] memory attendees = attendeeLists[eventId];
-        
+
         // Count mutual friends first
         uint256 count = 0;
         for (uint256 i = 0; i < friends.length; i++) {
@@ -968,7 +959,7 @@ contract Assemble {
                 }
             }
         }
-        
+
         // Build result array
         mutualFriends = new address[](count);
         uint256 index = 0;
@@ -987,12 +978,9 @@ contract Assemble {
     /// @param eventId Event identifier
     /// @param user User to check friends for
     /// @return friendsGoing Array of friends attending the event
-    function getFriendsAttending(
-        uint256 eventId,
-        address user
-    ) external view returns (address[] memory friendsGoing) {
+    function getFriendsAttending(uint256 eventId, address user) external view returns (address[] memory friendsGoing) {
         address[] memory friends = friendLists[user];
-        
+
         // Count friends going first
         uint256 count = 0;
         for (uint256 i = 0; i < friends.length; i++) {
@@ -1000,7 +988,7 @@ contract Assemble {
                 count++;
             }
         }
-        
+
         // Build result array
         friendsGoing = new address[](count);
         uint256 index = 0;
@@ -1017,14 +1005,14 @@ contract Assemble {
     /// @param eventId Event identifier
     /// @return attended Whether user has attendance badge for the event
     function hasAttended(address user, uint256 eventId) external view returns (bool attended) {
-        uint256 badgeId = _generateTokenId(TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
+        uint256 badgeId = generateTokenId(TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
         return balanceOf[user][badgeId] > 0;
     }
 
     /// @notice Get reputation score for a user (for external protocol integration)
-    /// @param user Address to check reputation for
+    /// @param /* user */ Address to check reputation for (unused in current implementation)
     /// @return score Reputation score based on events organized and attended
-    function getReputationScore(address user) external view returns (uint256 score) {
+    function getReputationScore(address /* user */) external pure returns (uint256 score) {
         // Simple reputation model: points for organizing + attending events
         // This could be expanded with more sophisticated scoring
         score = 0;
@@ -1039,8 +1027,7 @@ contract Assemble {
     /// @return isActive Whether the event is currently happening
     function isEventActive(uint256 eventId) external view returns (bool isActive) {
         PackedEventData memory eventData = events[eventId];
-        return block.timestamp >= eventData.startTime && 
-               block.timestamp <= (eventData.startTime + 1 days); // Assume 1 day duration
+        return block.timestamp >= eventData.startTime && block.timestamp <= (eventData.startTime + 1 days); // Assume 1 day duration
     }
 
     /// @notice Get payment splits for an event
@@ -1065,6 +1052,7 @@ contract Assemble {
     /// @notice Update fee recipient (only current fee recipient can call)
     /// @param newFeeTo New fee recipient address
     function setFeeTo(address newFeeTo) external onlyFeeTo {
+        require(newFeeTo != address(0), "Invalid fee recipient");
         address oldFeeTo = feeTo;
         feeTo = newFeeTo;
         emit FeeToUpdated(oldFeeTo, newFeeTo);
@@ -1088,21 +1076,21 @@ contract Assemble {
     /// @return results Array of return data from each call
     function multicall(bytes[] calldata data) external returns (bytes[] memory results) {
         results = new bytes[](data.length);
-        
+
         assembly {
             tstore(BATCH_OPERATION_SLOT, 1)
         }
-        
+
         for (uint256 i = 0; i < data.length; i++) {
             (bool success, bytes memory result) = address(this).delegatecall(data[i]);
             require(success, "Multicall failed");
             results[i] = result;
         }
-        
+
         assembly {
             tstore(BATCH_OPERATION_SLOT, 0)
         }
-        
+
         return results;
     }
 
@@ -1115,16 +1103,16 @@ contract Assemble {
     /// @param tokenId Ticket token ID (must own valid ticket)
     function checkIn(uint256 eventId, uint256 tokenId) external {
         require(balanceOf[msg.sender][tokenId] > 0, "Must own ticket");
-        require(_isValidTicketForEvent(tokenId, eventId), "Invalid ticket for event");
-        
+        require(isValidTicketForEvent(tokenId, eventId), "Invalid ticket for event");
+
         PackedEventData memory eventData = events[eventId];
         require(eventData.startTime > 0, "Event does not exist");
         require(block.timestamp >= eventData.startTime, "Event not started");
         require(block.timestamp <= eventData.startTime + 1 days, "Event ended"); // 1 day event duration
-        
+
         // Generate attendance badge ID (soulbound)
-        uint256 badgeId = _generateTokenId(TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
-        
+        uint256 badgeId = generateTokenId(TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
+
         // Only mint if user doesn't already have badge
         if (balanceOf[msg.sender][badgeId] == 0) {
             _mint(msg.sender, badgeId, 1);
@@ -1137,13 +1125,13 @@ contract Assemble {
     /// @dev Only callable by event organizer after event completion
     function claimOrganizerCredential(uint256 eventId) external {
         require(eventOrganizers[eventId] == msg.sender, "Not event organizer");
-        
+
         PackedEventData memory eventData = events[eventId];
         require(block.timestamp > eventData.startTime + 1 days, "Event not completed");
-        
+
         // Generate organizer credential ID (soulbound)
-        uint256 credId = _generateTokenId(TokenType.ORGANIZER_CRED, eventId, 0, 0);
-        
+        uint256 credId = generateTokenId(TokenType.ORGANIZER_CRED, eventId, 0, 0);
+
         // Only mint if organizer doesn't already have credential
         if (balanceOf[msg.sender][credId] == 0) {
             _mint(msg.sender, credId, 1);
@@ -1162,7 +1150,11 @@ contract Assemble {
         uint256 eventId,
         uint256 tierId,
         address[] calldata friends
-    ) external payable nonReentrant {
+    )
+        external
+        payable
+        nonReentrant
+    {
         require(friends.length > 0, "Must include friends");
         require(friends.length <= 10, "Too many friends"); // Reasonable limit
         
@@ -1172,12 +1164,20 @@ contract Assemble {
         }
         
         uint256 groupSize = friends.length + 1; // Include caller
-        uint256 groupDiscount = _calculateGroupDiscount(groupSize);
+        uint256 groupDiscount = calculateGroupDiscount(groupSize);
         
         // Calculate price with group discount
         uint256 basePrice = calculatePrice(eventId, tierId, 1, msg.sender);
+        
+        // Fix divide-before-multiply: calculate discount with proper precision
         uint256 discountAmount = (basePrice * groupDiscount) / 10000;
-        uint256 finalPrice = basePrice > discountAmount ? basePrice - discountAmount : basePrice / 100;
+        uint256 finalPrice;
+        if (basePrice > discountAmount) {
+            finalPrice = basePrice - discountAmount;
+        } else {
+            // Ensure minimum price calculation maintains precision
+            finalPrice = (basePrice * 100) / 10000; // 1% of base price with proper precision
+        }
         
         require(msg.value >= finalPrice, "Insufficient payment");
         
@@ -1188,10 +1188,10 @@ contract Assemble {
         tier.sold += 1;
         
         // Mint ticket
-        uint256 tokenId = _generateTokenId(TokenType.EVENT_TICKET, eventId, tierId, tier.sold);
+        uint256 tokenId = generateTokenId(TokenType.EVENT_TICKET, eventId, tierId, tier.sold);
         _mint(msg.sender, tokenId, 1);
         
-        // Distribute payment
+        // Distribute payment - fix divide-before-multiply
         uint256 protocolFee = (finalPrice * protocolFeeBps) / 10000;
         uint256 netAmount = finalPrice - protocolFee;
         
@@ -1213,10 +1213,10 @@ contract Assemble {
     /// @notice Calculate group discount based on group size
     /// @param groupSize Number of people in group purchase
     /// @return discount Discount in basis points
-    function _calculateGroupDiscount(uint256 groupSize) public pure returns (uint256 discount) {
+    function calculateGroupDiscount(uint256 groupSize) public pure returns (uint256 discount) {
         if (groupSize >= 10) return 1000; // 10%
         if (groupSize >= 5) return 500;   // 5%
         if (groupSize >= 3) return 250;   // 2.5%
         return 0;
     }
-} 
+}

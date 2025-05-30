@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {Test, console} from "forge-std/Test.sol";
-import {Assemble} from "../src/Assemble.sol";
+import { Test, console } from "forge-std/Test.sol";
+import { Assemble } from "../src/Assemble.sol";
 
 /// @title Wedding Celebration Example
 /// @notice Demonstrates wedding events with gift registry and honeymoon fund integration
 /// @author @taayyohh
 contract WeddingExampleTest is Test {
     Assemble public assemble;
-    
+
     address public bride = makeAddr("bride");
     address public groom = makeAddr("groom");
     address public venue = makeAddr("venue");
@@ -17,20 +17,20 @@ contract WeddingExampleTest is Test {
     address public guest1 = makeAddr("guest1");
     address public guest2 = makeAddr("guest2");
     address public guest3 = makeAddr("guest3");
-    
+
     function setUp() public {
         assemble = new Assemble(address(this));
-        
+
         // Fund wedding guests
         vm.deal(guest1, 3 ether);
         vm.deal(guest2, 3 ether);
         vm.deal(guest3, 3 ether);
     }
-    
+
     function test_WeddingCelebration() public {
         console.log("\n=== Wedding Celebration Example ===");
         console.log("Private wedding with RSVP system and gift contributions");
-        
+
         // Create wedding event
         Assemble.EventParams memory params = Assemble.EventParams({
             title: "Sarah & Michael's Wedding",
@@ -42,7 +42,7 @@ contract WeddingExampleTest is Test {
             venueId: 1,
             visibility: Assemble.EventVisibility.INVITE_ONLY
         });
-        
+
         // Wedding attendance tiers (gifts optional)
         Assemble.TicketTier[] memory tiers = new Assemble.TicketTier[](4);
         tiers[0] = Assemble.TicketTier({
@@ -53,7 +53,7 @@ contract WeddingExampleTest is Test {
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 45 days,
             transferrable: false // Personal invitation
-        });
+         });
         tiers[1] = Assemble.TicketTier({
             name: "Gift Contribution - Small",
             price: 0.05 ether, // $75 gift equivalent
@@ -64,7 +64,7 @@ contract WeddingExampleTest is Test {
             transferrable: false
         });
         tiers[2] = Assemble.TicketTier({
-            name: "Gift Contribution - Generous", 
+            name: "Gift Contribution - Generous",
             price: 0.15 ether, // $225 gift equivalent
             maxSupply: 30,
             sold: 0,
@@ -81,73 +81,73 @@ contract WeddingExampleTest is Test {
             endSaleTime: block.timestamp + 45 days,
             transferrable: false
         });
-        
+
         // Wedding gift distribution
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](3);
-        splits[0] = Assemble.PaymentSplit(bride, 4000, "bride_gifts");           // 40%
-        splits[1] = Assemble.PaymentSplit(groom, 4000, "groom_gifts");           // 40%
+        splits[0] = Assemble.PaymentSplit(bride, 4000, "bride_gifts"); // 40%
+        splits[1] = Assemble.PaymentSplit(groom, 4000, "groom_gifts"); // 40%
         splits[2] = Assemble.PaymentSplit(honeymoonFund, 2000, "honeymoon_trip"); // 20%
-        
+
         vm.prank(bride);
         uint256 eventId = assemble.createEvent(params, tiers, splits);
-        
+
         console.log("Wedding invitation sent!");
         console.log("Gift distribution: 40% bride, 40% groom, 20% honeymoon fund");
-        
+
         // Guests RSVP and contribute gifts
         vm.prank(guest1);
-        assemble.purchaseTickets{value: 0}(eventId, 0, 2); // +1 guest
-        
+        assemble.purchaseTickets{ value: 0 }(eventId, 0, 2); // +1 guest
+
         vm.prank(guest1);
         assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
-        
+
         vm.prank(guest2);
-        assemble.purchaseTickets{value: 0}(eventId, 0, 1); // Free attendance
-        
+        assemble.purchaseTickets{ value: 0 }(eventId, 0, 1); // Free attendance
+
         vm.prank(guest2);
         assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
-        
+
         vm.prank(guest3);
-        assemble.purchaseTickets{value: 0}(eventId, 0, 1); // Free attendance
-        
+        assemble.purchaseTickets{ value: 0 }(eventId, 0, 1); // Free attendance
+
         vm.prank(guest3);
         assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
-        
+
         console.log("Guests RSVPed for the wedding:");
         console.log("  Guest 1: Attending with +1");
         console.log("  Guest 2: Confirmed attendance");
         console.log("  Guest 3: Confirmed attendance");
-        
+
         // Check attendee list for planning
         address[] memory attendees = assemble.getAttendees(eventId);
         assertEq(attendees.length, 3);
         console.log("Wedding planning: 3 confirmed guests attending");
-        
+
         // Guests send wedding gifts via tips (this works perfectly!)
         vm.prank(guest1);
-        assemble.tipEvent{value: 0.2 ether}(eventId); // Family contribution
-        
+        assemble.tipEvent{ value: 0.2 ether }(eventId); // Family contribution
+
         vm.prank(guest2);
-        assemble.tipEvent{value: 0.15 ether}(eventId); // Wedding gift
-        
+        assemble.tipEvent{ value: 0.15 ether }(eventId); // Wedding gift
+
         vm.prank(guest3);
-        assemble.tipEvent{value: 0.5 ether}(eventId); // Generous gift
-        
+        assemble.tipEvent{ value: 0.5 ether }(eventId); // Generous gift
+
         console.log("Guests sent wedding gifts!");
-        
+
         // Check gift distribution (simplified)
         assertGt(assemble.pendingWithdrawals(bride), 0);
         assertGt(assemble.pendingWithdrawals(groom), 0);
         assertGt(assemble.pendingWithdrawals(honeymoonFund), 0);
-        
+
         console.log("Wedding gifts received and distributed!");
         console.log("Supporting the happy couple's new journey!");
     }
-    
+
     function test_WeddingRegistrySystem() public {
         console.log("\n=== Digital Wedding Registry Example ===");
         console.log("Onchain gift registry with specific item funding");
-        
+
         // Registry event for specific gifts
         Assemble.EventParams memory params = Assemble.EventParams({
             title: "Sarah & Michael's Gift Registry",
@@ -159,7 +159,7 @@ contract WeddingExampleTest is Test {
             venueId: 0, // Virtual registry
             visibility: Assemble.EventVisibility.PUBLIC
         });
-        
+
         // Specific gift items as tiers
         Assemble.TicketTier[] memory tiers = new Assemble.TicketTier[](5);
         tiers[0] = Assemble.TicketTier({
@@ -207,17 +207,17 @@ contract WeddingExampleTest is Test {
             endSaleTime: block.timestamp + 89 days,
             transferrable: false
         });
-        
+
         // All gifts go to couple equally
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](2);
-        splits[0] = Assemble.PaymentSplit(bride, 5000, "bride_share");  // 50%
-        splits[1] = Assemble.PaymentSplit(groom, 5000, "groom_share");  // 50%
-        
+        splits[0] = Assemble.PaymentSplit(bride, 5000, "bride_share"); // 50%
+        splits[1] = Assemble.PaymentSplit(groom, 5000, "groom_share"); // 50%
+
         vm.prank(bride);
         uint256 eventId = assemble.createEvent(params, tiers, splits);
-        
+
         console.log("Digital wedding registry created!");
         console.log("Guests can fund specific items or contribute to general fund");
         console.log("Perfect for modern couples starting their journey together!");
     }
-} 
+}

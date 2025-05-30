@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {Test, console} from "forge-std/Test.sol";
-import {Assemble} from "../src/Assemble.sol";
+import { Test, console } from "forge-std/Test.sol";
+import { Assemble } from "../src/Assemble.sol";
 
 /// @title Music Concert Example
 /// @notice Demonstrates concert events with artist revenue splits and VIP experiences
 /// @author @taayyohh
 contract MusicShowExampleTest is Test {
     Assemble public assemble;
-    
+
     address public artist = makeAddr("artist");
     address public venue = makeAddr("venue");
     address public soundEngineer = makeAddr("soundEngineer");
@@ -17,20 +17,20 @@ contract MusicShowExampleTest is Test {
     address public fan1 = makeAddr("fan1");
     address public fan2 = makeAddr("fan2");
     address public fan3 = makeAddr("fan3");
-    
+
     function setUp() public {
         assemble = new Assemble(address(this));
-        
+
         // Fund music fans
         vm.deal(fan1, 3 ether);
         vm.deal(fan2, 3 ether);
         vm.deal(fan3, 3 ether);
     }
-    
+
     function test_IndieRockConcert() public {
         console.log("\n=== Indie Rock Concert Example ===");
         console.log("Multi-tier concert with artist revenue splits and VIP packages");
-        
+
         // Create concert event
         Assemble.EventParams memory params = Assemble.EventParams({
             title: "The Midnight Echoes - World Tour",
@@ -42,7 +42,7 @@ contract MusicShowExampleTest is Test {
             venueId: 1,
             visibility: Assemble.EventVisibility.PUBLIC
         });
-        
+
         // Concert ticket tiers with VIP experiences
         Assemble.TicketTier[] memory tiers = new Assemble.TicketTier[](4);
         tiers[0] = Assemble.TicketTier({
@@ -80,93 +80,93 @@ contract MusicShowExampleTest is Test {
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 13 days,
             transferrable: false // Exclusive experience
-        });
-        
+         });
+
         // Music industry revenue splits
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](4);
-        splits[0] = Assemble.PaymentSplit(artist, 5500, "artist_performance");    // 55%
-        splits[1] = Assemble.PaymentSplit(venue, 2500, "venue_rental");          // 25%
-        splits[2] = Assemble.PaymentSplit(manager, 1500, "artist_management");   // 15%
+        splits[0] = Assemble.PaymentSplit(artist, 5500, "artist_performance"); // 55%
+        splits[1] = Assemble.PaymentSplit(venue, 2500, "venue_rental"); // 25%
+        splits[2] = Assemble.PaymentSplit(manager, 1500, "artist_management"); // 15%
         splits[3] = Assemble.PaymentSplit(soundEngineer, 500, "sound_production"); // 5%
-        
+
         vm.prank(manager);
         uint256 eventId = assemble.createEvent(params, tiers, splits);
-        
+
         console.log("Concert event created!");
         console.log("Revenue splits: 55% artist, 25% venue, 15% management, 5% sound");
-        
+
         // Fans purchase different ticket tiers
         uint256 gaPrice = assemble.calculatePrice(eventId, 0, 2, fan1);
         vm.prank(fan1);
-        assemble.purchaseTickets{value: gaPrice}(eventId, 0, 2); // GA for friends
-        
+        assemble.purchaseTickets{ value: gaPrice }(eventId, 0, 2); // GA for friends
+
         uint256 vipPrice = assemble.calculatePrice(eventId, 2, 1, fan2);
         vm.prank(fan2);
-        assemble.purchaseTickets{value: vipPrice}(eventId, 2, 1); // VIP experience
-        
+        assemble.purchaseTickets{ value: vipPrice }(eventId, 2, 1); // VIP experience
+
         uint256 platinumPrice = assemble.calculatePrice(eventId, 3, 1, fan3);
         vm.prank(fan3);
-        assemble.purchaseTickets{value: platinumPrice}(eventId, 3, 1); // Platinum package
-        
+        assemble.purchaseTickets{ value: platinumPrice }(eventId, 3, 1); // Platinum package
+
         console.log("Fans purchased tickets:");
         console.log("  2x General Admission");
         console.log("  1x VIP Experience");
         console.log("  1x Platinum Package");
-        
+
         // Concert social features - fans connect
         vm.prank(fan1);
         assemble.addFriend(fan2);
-        
+
         vm.prank(fan2);
         assemble.addFriend(fan1);
-        
+
         vm.prank(fan1);
         assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
-        
+
         // Check social discount for fan2 (friend is going)
         uint256 discountedPrice = assemble.calculatePrice(eventId, 0, 1, fan2);
         console.log("Social discount available for friend attending");
-        
+
         // Fans tip artist for amazing previous shows
         vm.prank(fan2);
-        assemble.tipEvent{value: 0.02 ether}(eventId);
-        
+        assemble.tipEvent{ value: 0.02 ether }(eventId);
+
         console.log("Fan tipped artist for previous performances!");
-        
+
         // Check artist earnings
         uint256 totalRevenue = gaPrice + vipPrice + platinumPrice + 0.02 ether; // All purchases + tip
-        uint256 protocolFee = (totalRevenue * 50) / 10000;
+        uint256 protocolFee = (totalRevenue * 50) / 10_000;
         uint256 netRevenue = totalRevenue - protocolFee;
-        
-        uint256 artistEarnings = (netRevenue * 5500) / 10000;
+
+        uint256 artistEarnings = (netRevenue * 5500) / 10_000;
         assertGt(assemble.pendingWithdrawals(artist), 0);
-        
+
         console.log("Artist earnings:", artistEarnings);
         console.log("Supporting independent musicians!");
-        
+
         // Concert night attendance
         vm.warp(block.timestamp + 14 days);
-        
-        uint256 ticket1 = assemble._generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
-        uint256 vipTicket = assemble._generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 2, 1);
-        
+
+        uint256 ticket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
+        uint256 vipTicket = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 2, 1);
+
         vm.prank(fan1);
         assemble.checkIn(eventId, ticket1);
-        
+
         vm.prank(fan2);
         assemble.checkIn(eventId, vipTicket);
-        
+
         assertTrue(assemble.hasAttended(fan1, eventId));
         assertTrue(assemble.hasAttended(fan2, eventId));
-        
+
         console.log("Fans attended concert and received attendance badges!");
         console.log("What an incredible show!");
     }
-    
+
     function test_FestivalMultiArtist() public {
         console.log("\n=== Music Festival Example ===");
         console.log("Multi-day festival with complex artist splits");
-        
+
         // Festival event
         Assemble.EventParams memory params = Assemble.EventParams({
             title: "SoundWave Festival 2024",
@@ -178,7 +178,7 @@ contract MusicShowExampleTest is Test {
             venueId: 1,
             visibility: Assemble.EventVisibility.PUBLIC
         });
-        
+
         // Festival passes and day tickets
         Assemble.TicketTier[] memory tiers = new Assemble.TicketTier[](3);
         tiers[0] = Assemble.TicketTier({
@@ -208,23 +208,23 @@ contract MusicShowExampleTest is Test {
             endSaleTime: block.timestamp + 29 days,
             transferrable: false
         });
-        
+
         // Festival revenue distribution
         address artistsPool = makeAddr("artistsPool");
         address production = makeAddr("production");
         address marketing = makeAddr("marketing");
-        
+
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](4);
         splits[0] = Assemble.PaymentSplit(artistsPool, 4000, "artists_collective"); // 40%
-        splits[1] = Assemble.PaymentSplit(venue, 3000, "venue_operations");        // 30%
-        splits[2] = Assemble.PaymentSplit(production, 2000, "stage_production");   // 20%
-        splits[3] = Assemble.PaymentSplit(marketing, 1000, "marketing_promo");     // 10%
-        
+        splits[1] = Assemble.PaymentSplit(venue, 3000, "venue_operations"); // 30%
+        splits[2] = Assemble.PaymentSplit(production, 2000, "stage_production"); // 20%
+        splits[3] = Assemble.PaymentSplit(marketing, 1000, "marketing_promo"); // 10%
+
         vm.prank(production);
         uint256 eventId = assemble.createEvent(params, tiers, splits);
-        
+
         console.log("Music festival launched!");
         console.log("Revenue distributed across artists, venue, production, and marketing");
         console.log("Supporting the entire music ecosystem!");
     }
-} 
+}
