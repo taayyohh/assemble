@@ -6,7 +6,7 @@
 
 ## 🎯 Overview
 
-Assemble Protocol is a gas-optimized, feature-complete implementation of onchain event coordination that achieves full Partiful feature parity. The protocol uses advanced Ethereum technologies to create a singleton contract that handles all event operations with exceptional gas efficiency.
+Assemble Protocol is a gas-optimized, feature-complete implementation of onchain event coordination that enables comprehensive social event management entirely onchain. The protocol uses advanced Ethereum technologies to create a singleton contract that handles all event operations with exceptional gas efficiency.
 
 ## ✨ Key Features
 
@@ -44,7 +44,7 @@ Assemble Protocol is a gas-optimized, feature-complete implementation of onchain
 
 ## 📊 Implementation Status
 
-✅ **COMPLETE** - All PRD requirements implemented and tested
+✅ **COMPLETE** - All core social event coordination features implemented and tested
 
 ### **Smart Contract Features**
 - [x] Event creation with multi-tier ticketing
@@ -181,9 +181,9 @@ forge test --match-contract DeploymentIntegrationTest -vv
 - `getReputationScore()` - User reputation metrics
 - `isEventActive()` - Current event status
 
-## 🎯 Original Requirements Met
+## 🎯 Core Capabilities
 
-**From PRD: "Complete Partiful feature parity entirely onchain"**
+**Comprehensive onchain social event coordination protocol**
 
 ✅ **Event Management**: Create, manage, and sell tickets for events
 ✅ **Social Features**: Friends, RSVPs, invitations, social discovery  
