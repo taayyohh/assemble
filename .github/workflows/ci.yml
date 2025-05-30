@@ -56,8 +56,9 @@ jobs:
 
       - name: Run Slither Analysis
         run: |
-          slither src/ --checklist --markdown-root ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.sha }}/ > slither-report.md || true
-          
+          slither . --exclude-dependencies --exclude-informational --exclude-optimization --fail-on medium
+        continue-on-error: false
+
       - name: Run Slither with JSON output
         run: |
           slither src/ --json slither-report.json --disable-color || true

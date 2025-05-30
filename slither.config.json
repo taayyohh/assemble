@@ -1,0 +1,25 @@
+{
+  "filter_paths": [
+    "lib/",
+    "test/",
+    "script/"
+  ],
+  "exclude_dependencies": true,
+  "exclude_informational": true,
+  "exclude_low": true,
+  "exclude_medium": false,
+  "exclude_high": false,
+  "exclude_optimization": true,
+  "detectors_to_exclude": [
+    "pragma",
+    "solc-version",
+    "naming-convention",
+    "unused-state",
+    "immutable-states",
+    "costly-loop"
+  ],
+  "checklist": true,
+  "markdown_root": "src/",
+  "compile_force_framework": "foundry",
+  "foundry_out_directory": "out"
+} 
