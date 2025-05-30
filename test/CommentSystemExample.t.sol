@@ -3,6 +3,8 @@ pragma solidity ^0.8.24;
 
 import { Test, console } from "forge-std/Test.sol";
 import { Assemble } from "../src/Assemble.sol";
+import { SocialLibrary } from "../src/libraries/SocialLibrary.sol";
+import { CommentLibrary } from "../src/libraries/CommentLibrary.sol";
 
 /// @title Comment System Example Test
 /// @notice Demonstrates comprehensive comment functionality matching Partiful features
@@ -52,12 +54,12 @@ contract CommentSystemExampleTest is Test {
         assertEq(comments.length, 3, "Should have 3 comments");
 
         // Verify comment details
-        Assemble.Comment memory aliceComment = assemble.getComment(1);
+        CommentLibrary.Comment memory aliceComment = assemble.getComment(1);
         assertEq(aliceComment.author, alice);
         assertEq(aliceComment.parentId, 0); // Top-level comment
         assertEq(aliceComment.content, "What should I bring to the party?");
 
-        Assemble.Comment memory bobReply = assemble.getComment(2);
+        CommentLibrary.Comment memory bobReply = assemble.getComment(2);
         assertEq(bobReply.author, bob);
         assertEq(bobReply.parentId, 1); // Reply to Alice
 
@@ -81,7 +83,7 @@ contract CommentSystemExampleTest is Test {
         console.log("Two users liked Alice's helpful comment");
 
         // Check like count
-        Assemble.Comment memory comment = assemble.getComment(1);
+        CommentLibrary.Comment memory comment = assemble.getComment(1);
         assertEq(comment.likes, 2, "Should have 2 likes");
 
         // Check individual like status
@@ -148,7 +150,7 @@ contract CommentSystemExampleTest is Test {
         assemble.deleteComment(1);
 
         // Verify comment is marked as deleted
-        Assemble.Comment memory deletedComment = assemble.getComment(1);
+        CommentLibrary.Comment memory deletedComment = assemble.getComment(1);
         assertTrue(deletedComment.isDeleted, "Comment should be marked as deleted");
 
         console.log("Organizer deleted spam comment");
@@ -159,8 +161,8 @@ contract CommentSystemExampleTest is Test {
 
         // Spammer tries to comment again but fails
         vm.prank(spammer);
-        vm.expectRevert("User is banned from commenting");
-        assemble.postComment(eventId, "Another spam message", 0);
+        vm.expectRevert("Banned");
+        assemble.postComment(eventId, "This should fail", 0);
 
         console.log("Spammer banned and prevented from commenting");
 
@@ -180,19 +182,19 @@ contract CommentSystemExampleTest is Test {
 
         // Test empty comment rejection
         vm.prank(alice);
-        vm.expectRevert("Comment cannot be empty");
+        vm.expectRevert("Invalid length");
         assemble.postComment(eventId, "", 0);
 
         // Test comment too long rejection
         string memory longComment = _generateLongString(1001); // Over 1000 char limit
         vm.prank(alice);
-        vm.expectRevert("Comment too long");
+        vm.expectRevert("Invalid length");
         assemble.postComment(eventId, longComment, 0);
 
         // Test reply to non-existent comment
         vm.prank(alice);
-        vm.expectRevert("Parent comment does not exist");
-        assemble.postComment(eventId, "Replying to nothing", 999);
+        vm.expectRevert("Parent not found");
+        assemble.postComment(eventId, "Reply to non-existent comment", 999);
 
         console.log("All comment validations working correctly");
     }
@@ -205,7 +207,7 @@ contract CommentSystemExampleTest is Test {
         assemble.postComment(eventId, "Can't wait for this!", 0);
 
         vm.prank(alice);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
         // Friends can see each other's comments and RSVPs
         vm.prank(alice);

@@ -3,6 +3,8 @@ pragma solidity ^0.8.24;
 
 import { Test, console } from "forge-std/Test.sol";
 import { Assemble } from "../src/Assemble.sol";
+import { SocialLibrary } from "../src/libraries/SocialLibrary.sol";
+import { CommentLibrary } from "../src/libraries/CommentLibrary.sol";
 
 /// @title Birthday Party Tip Example
 /// @notice Demonstrates how tips can be directed to different recipients (birthday person vs organizer)
@@ -185,7 +187,7 @@ contract BirthdayExampleTest is Test {
         assemble.purchaseTickets{ value: 0 }(eventId, 0, 1);
 
         vm.prank(tipper);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
         vm.prank(tipper);
         assemble.postComment(eventId, "So excited for your birthday Sarah! Should I bring anything?", 0);
@@ -232,7 +234,7 @@ contract BirthdayExampleTest is Test {
         assertEq(comments.length, 6, "Should have 6 comments total");
 
         // Verify some comments have likes
-        Assemble.Comment memory likedComment = assemble.getComment(1);
+        CommentLibrary.Comment memory likedComment = assemble.getComment(1);
         assertGt(likedComment.likes, 0, "Comment should have likes");
 
         console.log("Birthday party comments bring the community together!");

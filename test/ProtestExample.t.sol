@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import { Test, console } from "forge-std/Test.sol";
 import { Assemble } from "../src/Assemble.sol";
+import { SocialLibrary } from "../src/libraries/SocialLibrary.sol";
 
 /// @title Protest & Activism Example
 /// @notice Demonstrates free protest events with donations to causes and organizing funds
@@ -100,20 +101,20 @@ contract ProtestExampleTest is Test {
         assemble.purchaseTickets{ value: 0 }(eventId, 0, 1); // Free participation
 
         vm.prank(supporter1);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
         // Use generous amounts to cover dynamic pricing
         vm.prank(supporter2);
         assemble.purchaseTickets{ value: 0.1 ether }(eventId, 2, 1); // Very generous buffer
 
         vm.prank(supporter2);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
         vm.prank(supporter3);
         assemble.purchaseTickets{ value: 0.3 ether }(eventId, 3, 1); // Very generous buffer
 
         vm.prank(supporter3);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
         console.log("Supporters registered:");
         console.log("  Free participant confirmed");

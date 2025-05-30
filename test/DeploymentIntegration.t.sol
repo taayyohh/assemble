@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import { Test, console } from "forge-std/Test.sol";
 import { Assemble } from "../src/Assemble.sol";
+import { SocialLibrary } from "../src/libraries/SocialLibrary.sol";
 
 /// @title Deployment Integration Test
 /// @notice End-to-end integration tests simulating real deployment scenarios
@@ -102,10 +103,10 @@ contract DeploymentIntegrationTest is Test {
         assemble.addFriend(attendee3);
 
         vm.prank(attendee1);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
         vm.prank(attendee2);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
         address[] memory attendees = assemble.getAttendees(eventId);
         assertEq(attendees.length, 2);
@@ -119,7 +120,7 @@ contract DeploymentIntegrationTest is Test {
         assemble.purchaseTickets{ value: 1 wei }(eventId, 0, 1); // Send 1 wei for free ticket
 
         // Attendee2 gets support tier with social discount (friend going)
-        uint256 supportPrice = assemble.calculatePrice(eventId, 1, 1, attendee2);
+        uint256 supportPrice = assemble.calculatePrice(eventId, 1, 1);
         console.log("Support tier price with social discount:", supportPrice);
 
         // Make sure we send enough (add buffer)
@@ -127,7 +128,7 @@ contract DeploymentIntegrationTest is Test {
         assemble.purchaseTickets{ value: supportPrice + 0.001 ether }(eventId, 1, 1);
 
         // attendee3 purchases VIP (already friends with attendee1 from earlier)
-        uint256 vipPrice = assemble.calculatePrice(eventId, 2, 1, attendee3);
+        uint256 vipPrice = assemble.calculatePrice(eventId, 2, 1);
         console.log("VIP price:", vipPrice);
 
         vm.prank(attendee3);
@@ -209,7 +210,7 @@ contract DeploymentIntegrationTest is Test {
         uint256 badgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
 
         vm.prank(attendee1);
-        vm.expectRevert("Soulbound token");
+        vm.expectRevert("soulbound");
         assemble.transfer(attendee1, attendee2, badgeId, 1);
 
         console.log("Soulbound tokens properly restricted");
@@ -269,7 +270,7 @@ contract DeploymentIntegrationTest is Test {
         // RSVP
         gasBefore = gasleft();
         vm.prank(attendee1);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
         gasUsed = gasBefore - gasleft();
         console.log("RSVP update gas:", gasUsed);
 

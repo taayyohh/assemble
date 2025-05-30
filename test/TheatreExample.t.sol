@@ -93,11 +93,11 @@ contract TheatreExampleTest is Test {
         console.log("Revenue splits: 40% cast/crew, 20% director, 40% theatre/costs");
 
         // Theatre enthusiasts purchase tickets
-        uint256 gaPrice = assemble.calculatePrice(eventId, 1, 2, theatergoer1);
+        uint256 gaPrice = assemble.calculatePrice(eventId, 1, 2);
         vm.prank(theatergoer1);
         assemble.purchaseTickets{ value: gaPrice }(eventId, 1, 2); // General admission x2
 
-        uint256 premiumPrice = assemble.calculatePrice(eventId, 2, 1, theatergoer2);
+        uint256 premiumPrice = assemble.calculatePrice(eventId, 2, 1);
         vm.prank(theatergoer2);
         assemble.purchaseTickets{ value: premiumPrice }(eventId, 2, 1); // Premium seat
 

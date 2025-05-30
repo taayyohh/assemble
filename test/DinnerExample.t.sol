@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import { Test, console } from "forge-std/Test.sol";
 import { Assemble } from "../src/Assemble.sol";
+import { SocialLibrary } from "../src/libraries/SocialLibrary.sol";
 
 /// @title Dinner Event Example
 /// @notice Demonstrates restaurant events with chef revenue splits and social dining
@@ -87,19 +88,19 @@ contract DinnerExampleTest is Test {
         console.log("Revenue splits: 40% chef, 50% restaurant, 10% coordinator");
 
         // Food enthusiasts make reservations
-        uint256 tastingPrice1 = assemble.calculatePrice(eventId, 0, 1, diner1);
+        uint256 tastingPrice1 = assemble.calculatePrice(eventId, 0, 1);
         vm.prank(diner1);
         assemble.purchaseTickets{ value: tastingPrice1 }(eventId, 0, 1); // Tasting menu only
 
-        uint256 winePrice = assemble.calculatePrice(eventId, 1, 1, diner1);
+        uint256 winePrice = assemble.calculatePrice(eventId, 1, 1);
         vm.prank(diner1);
         assemble.purchaseTickets{ value: winePrice }(eventId, 1, 1); // Wine pairing add-on
 
-        uint256 tastingPrice2 = assemble.calculatePrice(eventId, 0, 1, diner2);
+        uint256 tastingPrice2 = assemble.calculatePrice(eventId, 0, 1);
         vm.prank(diner2);
         assemble.purchaseTickets{ value: tastingPrice2 }(eventId, 0, 1); // Tasting only
 
-        uint256 vipPrice = assemble.calculatePrice(eventId, 2, 1, diner3);
+        uint256 vipPrice = assemble.calculatePrice(eventId, 2, 1);
         vm.prank(diner3);
         assemble.purchaseTickets{ value: vipPrice }(eventId, 2, 1); // Chef's table VIP
 
@@ -116,10 +117,10 @@ contract DinnerExampleTest is Test {
         assemble.addFriend(diner1);
 
         vm.prank(diner1);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
         vm.prank(diner2);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
         console.log("Diners connected and confirmed attendance");
 
@@ -130,7 +131,7 @@ contract DinnerExampleTest is Test {
         vm.prank(diner1);
         assemble.addFriend(diner4);
 
-        uint256 friendPrice = assemble.calculatePrice(eventId, 0, 1, diner4);
+        uint256 friendPrice = assemble.calculatePrice(eventId, 0, 1);
         vm.prank(diner4);
         assemble.purchaseTickets{ value: friendPrice }(eventId, 0, 1); // Regular purchase
 

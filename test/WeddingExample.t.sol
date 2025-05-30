@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import { Test, console } from "forge-std/Test.sol";
 import { Assemble } from "../src/Assemble.sol";
+import { SocialLibrary } from "../src/libraries/SocialLibrary.sol";
 
 /// @title Wedding Celebration Example
 /// @notice Demonstrates wedding events with gift registry and honeymoon fund integration
@@ -99,19 +100,19 @@ contract WeddingExampleTest is Test {
         assemble.purchaseTickets{ value: 0 }(eventId, 0, 2); // +1 guest
 
         vm.prank(guest1);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
         vm.prank(guest2);
         assemble.purchaseTickets{ value: 0 }(eventId, 0, 1); // Free attendance
 
         vm.prank(guest2);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
         vm.prank(guest3);
         assemble.purchaseTickets{ value: 0 }(eventId, 0, 1); // Free attendance
 
         vm.prank(guest3);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
         console.log("Guests RSVPed for the wedding:");
         console.log("  Guest 1: Attending with +1");

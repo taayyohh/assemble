@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import { Test, console } from "forge-std/Test.sol";
 import { Assemble } from "../src/Assemble.sol";
+import { SocialLibrary } from "../src/libraries/SocialLibrary.sol";
 
 /// @title Music Concert Example
 /// @notice Demonstrates concert events with artist revenue splits and VIP experiences
@@ -96,15 +97,15 @@ contract MusicShowExampleTest is Test {
         console.log("Revenue splits: 55% artist, 25% venue, 15% management, 5% sound");
 
         // Fans purchase different ticket tiers
-        uint256 gaPrice = assemble.calculatePrice(eventId, 0, 2, fan1);
+        uint256 gaPrice = assemble.calculatePrice(eventId, 0, 2);
         vm.prank(fan1);
         assemble.purchaseTickets{ value: gaPrice }(eventId, 0, 2); // GA for friends
 
-        uint256 vipPrice = assemble.calculatePrice(eventId, 2, 1, fan2);
+        uint256 vipPrice = assemble.calculatePrice(eventId, 2, 1);
         vm.prank(fan2);
         assemble.purchaseTickets{ value: vipPrice }(eventId, 2, 1); // VIP experience
 
-        uint256 platinumPrice = assemble.calculatePrice(eventId, 3, 1, fan3);
+        uint256 platinumPrice = assemble.calculatePrice(eventId, 3, 1);
         vm.prank(fan3);
         assemble.purchaseTickets{ value: platinumPrice }(eventId, 3, 1); // Platinum package
 
@@ -121,10 +122,10 @@ contract MusicShowExampleTest is Test {
         assemble.addFriend(fan1);
 
         vm.prank(fan1);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
         // Check social discount for fan2 (friend is going)
-        uint256 discountedPrice = assemble.calculatePrice(eventId, 0, 1, fan2);
+        uint256 discountedPrice = assemble.calculatePrice(eventId, 0, 1);
         console.log("Social discount available for friend attending");
 
         // Fans tip artist for amazing previous shows

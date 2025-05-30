@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import { Test, console } from "forge-std/Test.sol";
 import { Assemble } from "../src/Assemble.sol";
+import { SocialLibrary } from "../src/libraries/SocialLibrary.sol";
 
 contract AssembleTest is Test {
     Assemble public assemble;
@@ -135,7 +136,7 @@ contract AssembleTest is Test {
         invalidSplits[1] = Assemble.PaymentSplit(bob, 3000, "venue"); // 30% - total 90%
 
         vm.prank(alice);
-        vm.expectRevert("Splits must total exactly 100%");
+        vm.expectRevert("!100%");
         assemble.createEvent(params, tiers, invalidSplits);
 
         // Test valid splits (totals 100%)
@@ -184,7 +185,7 @@ contract AssembleTest is Test {
 
         // Verify token belongs to event 1
         assertTrue(assemble.isValidTicketForEvent(tokenId, 1));
-        
+
         console.log("Generated token ID:", tokenId);
         console.log("Event ID from token:", (tokenId >> 184) & 0xFFFFFFFFFFFFFFFF);
     }
@@ -232,19 +233,15 @@ contract AssembleTest is Test {
 
         // Alice RSVPs as going
         vm.prank(alice);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
-        // Calculate price for Bob (should get social discount)
-        uint256 regularPrice = assemble.calculatePrice(eventId, 0, 1, charlie);
-        uint256 socialPrice = assemble.calculatePrice(eventId, 0, 1, bob);
+        // Calculate price for Bob (no social discount anymore)
+        uint256 price = assemble.calculatePrice(eventId, 0, 1);
 
-        // Bob should get discount because Alice (his friend) is going
-        assertLt(socialPrice, regularPrice);
-
-        // Purchase with social discount
+        // Purchase ticket
         vm.deal(bob, 1 ether);
         vm.prank(bob);
-        assemble.purchaseTickets{ value: socialPrice }(eventId, 0, 1);
+        assemble.purchaseTickets{ value: price }(eventId, 0, 1);
 
         // Check ticket was minted
         uint256 tokenId = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
@@ -319,9 +316,9 @@ contract AssembleTest is Test {
 
         // RSVP as going
         vm.prank(alice);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
-        assertEq(uint8(assemble.rsvps(eventId, alice)), uint8(Assemble.RSVPStatus.GOING));
+        assertEq(uint8(assemble.rsvps(eventId, alice)), uint8(SocialLibrary.RSVPStatus.GOING));
 
         address[] memory attendees = assemble.getAttendees(eventId);
         assertEq(attendees.length, 1);
@@ -329,7 +326,7 @@ contract AssembleTest is Test {
 
         // Change to not going
         vm.prank(alice);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.NOT_GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.NOT_GOING);
 
         attendees = assemble.getAttendees(eventId);
         assertEq(attendees.length, 0);
@@ -364,11 +361,11 @@ contract AssembleTest is Test {
 
         // Bob RSVPs as going
         vm.prank(bob);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
         // Charlie RSVPs as interested (not going)
         vm.prank(charlie);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.INTERESTED);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.INTERESTED);
 
         address[] memory friendsGoing = assemble.getFriendsAttending(eventId, alice);
         assertEq(friendsGoing.length, 1);
@@ -444,7 +441,7 @@ contract AssembleTest is Test {
 
     function test_SetProtocolFeeRevertsTooHigh() public {
         vm.prank(feeTo);
-        vm.expectRevert("Fee too high");
+        vm.expectRevert("too high");
         assemble.setProtocolFee(1100); // 11% - above MAX_PROTOCOL_FEE
     }
 
@@ -520,7 +517,7 @@ contract AssembleTest is Test {
         vm.warp(block.timestamp + 1 days);
 
         vm.prank(bob);
-        vm.expectRevert("Must own ticket");
+        vm.expectRevert("!ticket");
         assemble.checkIn(eventId, fakeTicketId);
     }
 
@@ -536,7 +533,7 @@ contract AssembleTest is Test {
 
         // Try to check in before event starts
         vm.prank(bob);
-        vm.expectRevert("Event not started");
+        vm.expectRevert("!started");
         assemble.checkIn(eventId, ticketId);
     }
 
@@ -561,7 +558,7 @@ contract AssembleTest is Test {
         vm.warp(block.timestamp + 2 days + 1 hours);
 
         vm.prank(bob);
-        vm.expectRevert("Not event organizer");
+        vm.expectRevert("!organizer");
         assemble.claimOrganizerCredential(eventId);
     }
 
@@ -583,64 +580,8 @@ contract AssembleTest is Test {
 
         // Try to transfer soulbound badge (should fail)
         vm.prank(bob);
-        vm.expectRevert("Soulbound token");
+        vm.expectRevert("soulbound");
         assemble.transfer(bob, charlie, badgeId, 1);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        GROUP PURCHASE TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function test_PurchaseWithFriends() public {
-        uint256 eventId = _createSampleEvent();
-
-        // Set up friendships
-        vm.prank(alice);
-        assemble.addFriend(bob);
-
-        vm.prank(alice);
-        assemble.addFriend(charlie);
-
-        // Calculate group discount (3 people = 2.5% discount)
-        uint256 regularPrice = assemble.calculatePrice(eventId, 0, 1, alice);
-
-        address[] memory friends = new address[](2);
-        friends[0] = bob;
-        friends[1] = charlie;
-
-        // Purchase with friends
-        vm.deal(alice, 1 ether);
-        vm.prank(alice);
-        assemble.purchaseWithFriends{ value: regularPrice }(eventId, 0, friends);
-
-        // Verify ticket was minted
-        uint256 tokenId = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
-        assertEq(assemble.balanceOf(alice, tokenId), 1);
-    }
-
-    function test_PurchaseWithFriendsFailsNotFriends() public {
-        uint256 eventId = _createSampleEvent();
-
-        // Alice is only friends with Bob, not Charlie
-        vm.prank(alice);
-        assemble.addFriend(bob);
-
-        address[] memory friends = new address[](2);
-        friends[0] = bob;
-        friends[1] = charlie; // Not friends with Alice
-
-        vm.deal(alice, 1 ether);
-        vm.prank(alice);
-        vm.expectRevert("Not all are friends");
-        assemble.purchaseWithFriends{ value: 0.1 ether }(eventId, 0, friends);
-    }
-
-    function test_GroupDiscountCalculation() public {
-        // Test different group sizes
-        assertEq(assemble.calculateGroupDiscount(2), 0); // No discount for 2
-        assertEq(assemble.calculateGroupDiscount(3), 250); // 2.5% for 3-4
-        assertEq(assemble.calculateGroupDiscount(5), 500); // 5% for 5-9
-        assertEq(assemble.calculateGroupDiscount(10), 1000); // 10% for 10+
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -656,7 +597,7 @@ contract AssembleTest is Test {
         assemble.addFriend(bob);
 
         vm.prank(bob);
-        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
         // 3. Purchase tickets with social discount
         vm.deal(charlie, 1 ether);
