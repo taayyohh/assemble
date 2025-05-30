@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 /// @title Assemble Protocol
 /// @notice A foundational singleton smart contract protocol for onchain social coordination and event management
 /// @dev Built with ERC-6909 multi-token architecture and EIP-1153 transient storage for gas optimization
-/// @author Assemble Protocol Team
+/// @author @taayyohh
 contract Assemble {
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
@@ -365,6 +365,11 @@ contract Assemble {
         
         uint256 basePrice = tier.price;
         
+        // If base price is 0, tickets are truly free - no dynamic pricing or minimums
+        if (basePrice == 0) {
+            return 0;
+        }
+        
         // Calculate demand multiplier (simple linear model)
         uint256 demandMultiplier = _calculateDemandMultiplier(eventId, tierId);
         
@@ -378,11 +383,15 @@ contract Assemble {
         if (socialDiscount > 0 && socialDiscount < totalPrice) {
             totalPrice -= socialDiscount;
         } else if (socialDiscount >= totalPrice) {
-            // If discount equals or exceeds price, set minimum price (small amount to prevent free tickets)
-            totalPrice = basePrice / 100; // 1% minimum
+            // If discount equals or exceeds price, set minimum price (1% of base price)
+            totalPrice = basePrice / 100;
+            // Ensure minimum of 1 wei for paid tickets only
+            if (totalPrice == 0) {
+                totalPrice = 1;
+            }
         }
         
-        // Ensure minimum price of at least 1 wei
+        // Ensure minimum price of at least 1 wei for paid tickets only
         if (totalPrice == 0) {
             totalPrice = 1;
         }
@@ -390,6 +399,8 @@ contract Assemble {
 
     /// @notice Tip an event directly (independent of ticket sales)
     /// @param eventId Event to tip
+    /// @dev Tips are distributed according to the event's payment splits, allowing flexible recipient allocation
+    /// @dev Example: Birthday party where birthday person gets 80%, organizer gets 20% via payment splits
     function tipEvent(uint256 eventId) external payable nonReentrant {
         require(msg.value > 0, "Must send some value");
         require(events[eventId].startTime > 0, "Event does not exist");
@@ -403,7 +414,7 @@ contract Assemble {
             pendingWithdrawals[feeTo] += protocolFee;
         }
         
-        // Distribute net amount according to payment splits
+        // Distribute net amount according to payment splits (can direct tips to specific recipients!)
         _distributePayment(eventId, netAmount);
         
         emit EventTipped(eventId, msg.sender, msg.value);

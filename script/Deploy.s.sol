@@ -6,6 +6,7 @@ import {Assemble} from "../src/Assemble.sol";
 
 /// @title Assemble Protocol Deployment Script
 /// @notice Deploy the Assemble protocol singleton contract
+/// @author @taayyohh
 contract DeployScript is Script {
     /// @notice Deploy the Assemble protocol
     /// @dev Uses CREATE2 for deterministic deployment across chains
