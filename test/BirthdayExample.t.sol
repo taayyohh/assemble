@@ -140,4 +140,102 @@ contract BirthdayExampleTest is Test {
         console.log("3. 40% birthday person, 30% band, 20% venue, 10% organizer");
         console.log("Tips can be directed anywhere!");
     }
+
+    function test_BirthdayPartyWithComments() public {
+        console.log("\n=== Birthday Party with Comments ===");
+        console.log("Demonstrating comment integration with birthday celebrations");
+        
+        // Create additional friend for this test
+        address friend = makeAddr("friend");
+        vm.deal(friend, 1 ether);
+        
+        // Create birthday event
+        Assemble.EventParams memory params = Assemble.EventParams({
+            title: "Sarah's 25th Birthday Bash!",
+            description: "Come celebrate with cake, music, and great friends!",
+            imageUri: "ipfs://birthday-bash",
+            startTime: block.timestamp + 5 days,
+            endTime: block.timestamp + 5 days + 6 hours,
+            capacity: 30,
+            venueId: 1,
+            visibility: Assemble.EventVisibility.PUBLIC
+        });
+        
+        Assemble.TicketTier[] memory tiers = new Assemble.TicketTier[](1);
+        tiers[0] = Assemble.TicketTier({
+            name: "Party Guest",
+            price: 0, // Free birthday party
+            maxSupply: 30,
+            sold: 0,
+            startSaleTime: block.timestamp,
+            endSaleTime: block.timestamp + 4 days,
+            transferrable: false
+        });
+        
+        Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](1);
+        splits[0] = Assemble.PaymentSplit(birthdayPerson, 10000, "birthday_person");
+        
+        vm.prank(organizer);
+        uint256 eventId = assemble.createEvent(params, tiers, splits);
+        
+        console.log("Birthday party event created!");
+        
+        // Friends RSVP and start chatting in comments
+        vm.prank(tipper);
+        assemble.purchaseTickets{value: 0}(eventId, 0, 1);
+        
+        vm.prank(tipper);
+        assemble.updateRSVP(eventId, Assemble.RSVPStatus.GOING);
+        
+        vm.prank(tipper);
+        assemble.postComment(eventId, "So excited for your birthday Sarah! Should I bring anything?", 0);
+        
+        // Organizer responds with party details
+        vm.prank(organizer);
+        assemble.postComment(eventId, "Just bring yourselves! We have food and drinks covered. Can't wait!", 1);
+        
+        // Friend joins the conversation
+        vm.prank(friend);
+        assemble.purchaseTickets{value: 0}(eventId, 0, 1);
+        
+        vm.prank(friend);
+        assemble.postComment(eventId, "Will there be karaoke? I'm ready to serenade the birthday girl!", 0);
+        
+        // Birthday person responds
+        vm.prank(birthdayPerson);
+        assemble.postComment(eventId, "OMG yes! I can't wait to hear your amazing voice!", 3);
+        
+        // Friends like each other's comments
+        vm.prank(friend);
+        assemble.likeComment(1); // Like tipper's question
+        
+        vm.prank(tipper);
+        assemble.likeComment(3); // Like friend's karaoke comment
+        
+        console.log("Friends are chatting and getting excited for the party!");
+        
+        // Last minute update from organizer
+        vm.prank(organizer);
+        assemble.postComment(eventId, "UPDATE: Party moved to the backyard - weather is perfect!", 0);
+        
+        // Someone sends a birthday tip with comment
+        vm.prank(tipper);
+        assemble.tipEvent{value: 0.1 ether}(eventId);
+        
+        vm.prank(tipper);
+        assemble.postComment(eventId, "Sent a little birthday gift! Have an amazing day Sarah!", 0);
+        
+        console.log("Comments create buzz and excitement before the party!");
+        
+        // Check all comments were created
+        uint256[] memory comments = assemble.getEventComments(eventId);
+        assertEq(comments.length, 6, "Should have 6 comments total");
+        
+        // Verify some comments have likes
+        Assemble.Comment memory likedComment = assemble.getComment(1);
+        assertGt(likedComment.likes, 0, "Comment should have likes");
+        
+        console.log("Birthday party comments bring the community together!");
+        console.log("Perfect integration of social features!");
+    }
 } 

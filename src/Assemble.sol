@@ -109,6 +109,16 @@ contract Assemble {
         string role;           // "organizer", "venue", "artist", etc.
     }
 
+    /// @notice Event comment data structure
+    struct Comment {
+        address author;         // Comment author
+        uint256 timestamp;      // When comment was posted
+        string content;         // Comment text content
+        uint256 parentId;       // Parent comment ID for replies (0 for top-level)
+        bool isDeleted;         // Soft delete flag
+        uint256 likes;          // Number of likes
+    }
+
     /// @notice Token ID structure for ERC-6909 (256 bits)
     struct TokenId {
         uint8 tokenType;        // TokenType enum value
@@ -124,6 +134,9 @@ contract Assemble {
 
     /// @notice Next event ID counter
     uint256 public nextEventId = 1;
+    
+    /// @notice Next comment ID counter
+    uint256 public nextCommentId = 1;
     
     /// @notice Protocol fee in basis points (0.5% = 50 bps)
     uint256 public protocolFeeBps = 50;
@@ -141,6 +154,12 @@ contract Assemble {
     mapping(uint256 => mapping(uint256 => TicketTier)) public ticketTiers;
     mapping(uint256 => PaymentSplit[]) public eventPaymentSplits;
     mapping(uint256 => address) public eventOrganizers;
+
+    // Comment system
+    mapping(uint256 => Comment) public comments;
+    mapping(uint256 => uint256[]) public eventComments;
+    mapping(uint256 => mapping(address => bool)) public commentLikes;
+    mapping(address => bool) public bannedUsers;
 
     // Security: Pull payment pattern
     mapping(address => uint256) public pendingWithdrawals;
@@ -173,6 +192,14 @@ contract Assemble {
     event FundsClaimed(address indexed recipient, uint256 amount);
     event EventTipped(uint256 indexed eventId, address indexed tipper, uint256 amount);
     event AttendanceVerified(uint256 indexed eventId, address indexed attendee);
+
+    // Comment system events
+    event CommentPosted(uint256 indexed eventId, uint256 indexed commentId, address indexed author, uint256 parentId);
+    event CommentLiked(uint256 indexed commentId, address indexed user);
+    event CommentUnliked(uint256 indexed commentId, address indexed user);
+    event CommentDeleted(uint256 indexed commentId, address indexed deletedBy);
+    event UserBanned(address indexed user, address indexed bannedBy);
+    event UserUnbanned(address indexed user, address indexed unbannedBy);
 
     // Admin events
     event FeeToUpdated(address indexed oldFeeTo, address indexed newFeeTo);
@@ -523,6 +550,197 @@ contract Assemble {
         // Clear transient storage
         assembly {
             tstore(BATCH_OPERATION_SLOT, 0)
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        COMMENT SYSTEM
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Post a comment on an event
+    /// @param eventId Event to comment on
+    /// @param content Comment text content
+    /// @param parentId Parent comment ID for replies (0 for top-level)
+    function postComment(
+        uint256 eventId,
+        string calldata content,
+        uint256 parentId
+    ) external {
+        require(events[eventId].startTime > 0, "Event does not exist");
+        require(!bannedUsers[msg.sender], "User is banned from commenting");
+        require(bytes(content).length > 0, "Comment cannot be empty");
+        require(bytes(content).length <= 1000, "Comment too long"); // Reasonable limit
+        
+        // If replying, validate parent comment exists and belongs to same event
+        if (parentId > 0) {
+            require(comments[parentId].timestamp > 0, "Parent comment does not exist");
+            require(!comments[parentId].isDeleted, "Cannot reply to deleted comment");
+            
+            // Find parent comment in event's comment list to verify it belongs to this event
+            uint256[] memory eventCommentIds = eventComments[eventId];
+            bool parentFound = false;
+            for (uint256 i = 0; i < eventCommentIds.length; i++) {
+                if (eventCommentIds[i] == parentId) {
+                    parentFound = true;
+                    break;
+                }
+            }
+            require(parentFound, "Parent comment not in this event");
+        }
+        
+        uint256 commentId = nextCommentId++;
+        
+        comments[commentId] = Comment({
+            author: msg.sender,
+            timestamp: block.timestamp,
+            content: content,
+            parentId: parentId,
+            isDeleted: false,
+            likes: 0
+        });
+        
+        eventComments[eventId].push(commentId);
+        
+        emit CommentPosted(eventId, commentId, msg.sender, parentId);
+    }
+
+    /// @notice Like a comment
+    /// @param commentId Comment to like
+    function likeComment(uint256 commentId) external {
+        require(comments[commentId].timestamp > 0, "Comment does not exist");
+        require(!comments[commentId].isDeleted, "Cannot like deleted comment");
+        require(!commentLikes[commentId][msg.sender], "Already liked");
+        
+        commentLikes[commentId][msg.sender] = true;
+        comments[commentId].likes++;
+        
+        emit CommentLiked(commentId, msg.sender);
+    }
+
+    /// @notice Unlike a comment
+    /// @param commentId Comment to unlike
+    function unlikeComment(uint256 commentId) external {
+        require(comments[commentId].timestamp > 0, "Comment does not exist");
+        require(commentLikes[commentId][msg.sender], "Not liked");
+        
+        commentLikes[commentId][msg.sender] = false;
+        comments[commentId].likes--;
+        
+        emit CommentUnliked(commentId, msg.sender);
+    }
+
+    /// @notice Delete a comment (soft delete)
+    /// @param commentId Comment to delete
+    /// @dev Only comment author or event organizer can delete
+    function deleteComment(uint256 commentId) external {
+        require(comments[commentId].timestamp > 0, "Comment does not exist");
+        require(!comments[commentId].isDeleted, "Comment already deleted");
+        
+        // Find which event this comment belongs to
+        uint256 targetEventId = 0;
+        for (uint256 eventId = 1; eventId < nextEventId; eventId++) {
+            uint256[] memory eventCommentIds = eventComments[eventId];
+            for (uint256 i = 0; i < eventCommentIds.length; i++) {
+                if (eventCommentIds[i] == commentId) {
+                    targetEventId = eventId;
+                    break;
+                }
+            }
+            if (targetEventId > 0) break;
+        }
+        
+        require(targetEventId > 0, "Comment event not found");
+        
+        // Check permissions: author or event organizer can delete
+        require(
+            comments[commentId].author == msg.sender || 
+            eventOrganizers[targetEventId] == msg.sender ||
+            msg.sender == feeTo, // Protocol admin
+            "Not authorized to delete"
+        );
+        
+        comments[commentId].isDeleted = true;
+        
+        emit CommentDeleted(commentId, msg.sender);
+    }
+
+    /// @notice Ban a user from commenting (organizer or admin only)
+    /// @param user User to ban
+    /// @param eventId Event context for permission check
+    function banUser(address user, uint256 eventId) external {
+        require(events[eventId].startTime > 0, "Event does not exist");
+        require(
+            eventOrganizers[eventId] == msg.sender || msg.sender == feeTo,
+            "Not authorized"
+        );
+        require(!bannedUsers[user], "User already banned");
+        
+        bannedUsers[user] = true;
+        
+        emit UserBanned(user, msg.sender);
+    }
+
+    /// @notice Unban a user (organizer or admin only)
+    /// @param user User to unban
+    /// @param eventId Event context for permission check
+    function unbanUser(address user, uint256 eventId) external {
+        require(events[eventId].startTime > 0, "Event does not exist");
+        require(
+            eventOrganizers[eventId] == msg.sender || msg.sender == feeTo,
+            "Not authorized"
+        );
+        require(bannedUsers[user], "User not banned");
+        
+        bannedUsers[user] = false;
+        
+        emit UserUnbanned(user, msg.sender);
+    }
+
+    /// @notice Get comments for an event
+    /// @param eventId Event identifier
+    /// @return commentIds Array of comment IDs for the event
+    function getEventComments(uint256 eventId) external view returns (uint256[] memory commentIds) {
+        return eventComments[eventId];
+    }
+
+    /// @notice Get comment details
+    /// @param commentId Comment identifier
+    /// @return comment Complete comment data
+    function getComment(uint256 commentId) external view returns (Comment memory comment) {
+        return comments[commentId];
+    }
+
+    /// @notice Check if user has liked a comment
+    /// @param commentId Comment identifier
+    /// @param user User address
+    /// @return hasLiked Whether user has liked the comment
+    function hasLikedComment(uint256 commentId, address user) external view returns (bool hasLiked) {
+        return commentLikes[commentId][user];
+    }
+
+    /// @notice Get replies to a comment
+    /// @param parentId Parent comment ID
+    /// @param eventId Event ID to search within
+    /// @return replyIds Array of reply comment IDs
+    function getCommentReplies(uint256 parentId, uint256 eventId) external view returns (uint256[] memory replyIds) {
+        uint256[] memory eventCommentIds = eventComments[eventId];
+        
+        // Count replies first
+        uint256 replyCount = 0;
+        for (uint256 i = 0; i < eventCommentIds.length; i++) {
+            if (comments[eventCommentIds[i]].parentId == parentId) {
+                replyCount++;
+            }
+        }
+        
+        // Build result array
+        replyIds = new uint256[](replyCount);
+        uint256 index = 0;
+        for (uint256 i = 0; i < eventCommentIds.length; i++) {
+            if (comments[eventCommentIds[i]].parentId == parentId) {
+                replyIds[index] = eventCommentIds[i];
+                index++;
+            }
         }
     }
 
