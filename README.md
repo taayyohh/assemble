@@ -15,7 +15,6 @@ Assemble Protocol is a gas-optimized, security-audited, feature-complete impleme
 - **ERC-6909 Multi-Token**: Efficient batch operations for tickets, badges, and credentials
 - **EIP-1153 Transient Storage**: Gas-optimized temporary state for batch operations
 - **Immutable Core**: Protocol functions cannot be changed, only fee collection is mutable
-- **Contract Size Optimized**: 21.5KB runtime size with custom errors (12% reduction)
 
 ### **Event Management** 
 - Multi-tier ticketing systems with dynamic pricing
@@ -119,10 +118,10 @@ Assemble Protocol is a gas-optimized, security-audited, feature-complete impleme
 
 ### **Security Analysis Results**
 
-**Zero Security Issues** - Slither static analysis clean  
-**Zero High/Medium Vulnerabilities** - Comprehensive scanning  
-**Production Security Patterns** - Industry best practices  
-**Automated CI Security** - Continuous vulnerability monitoring  
+**Static Analysis Clean** - Slither finds no high/medium issues  
+**Comprehensive Testing** - 111 tests covering various scenarios  
+**Security Patterns** - Industry standard practices implemented  
+**Automated Monitoring** - CI/CD security scanning enabled
 
 #### **Security Measures Implemented**
 - **Reentrancy Protection**: EIP-1153 transient storage guards
@@ -132,18 +131,16 @@ Assemble Protocol is a gas-optimized, security-audited, feature-complete impleme
 - **Overflow Protection**: SafeMath and compiler checks
 - **Economic Limits**: Prevent abuse and griefing
 
-## Gas Efficiency Results
+## Gas Efficiency
 
-| Operation | Gas Used | Target | Status |
-|-----------|----------|--------|---------|
-| Event Creation | ~319k | <600k | Excellent |
-| Ticket Purchase | ~158k | <700k | Excellent |
-| Social Operations | 30-140k | - | Optimal |
-| Fund Claims | ~683k | - | Good |
-| ERC-6909 Transfers | ~699k | - | Good |
-| Batch Operations | ~15k/operation | - | Highly Efficient |
-
-*Gas usage verified through comprehensive benchmarking and custom error optimization*
+| Operation | Gas Used |
+|-----------|----------|
+| Event Creation | ~319k |
+| Ticket Purchase | ~158k |
+| Social Operations | 30-140k |
+| Fund Claims | ~683k |
+| ERC-6909 Transfers | ~699k |
+| Batch Operations | ~15k/operation |
 
 ## Technology Stack
 
@@ -289,73 +286,22 @@ slither . --config-file slither.config.json --fail-medium
 - `getComment()` - Get comment details by ID
 - `hasLikedComment()` - Check if user liked a comment
 
-## Core Capabilities
+## Features
 
-**Comprehensive onchain social event coordination protocol**
-
-**Event Management**: Create, manage, and sell tickets for events
+**Event Management**: Create, manage, and sell tickets for events  
 **Social Features**: Friends, RSVPs, invitations, social discovery  
-**Comment System**: Event discussions with threaded conversations and likes
-**Fixed Pricing**: Transparent tier-based pricing system
-**Payment Processing**: Revenue splits and tip jar functionality
-**Event Cancellation**: Full refund system with 90-day claim window
-**Attendance Tracking**: Check-in system with proof badges
-**Credentials**: Soulbound organizer credentials and attendance badges
-**Gas Optimization**: Efficient operations using latest EIPs
-**Security**: Comprehensive testing with static analysis (unaudited)
-
-## Production Readiness
-
-The Assemble Protocol is **battle-tested and production-ready** with:
-
-### **Security Assurance**
-- **111 comprehensive tests** - 100% passing across all scenarios
-- **Zero security vulnerabilities** - Verified through static analysis
-- **Automated security monitoring** - Continuous CI/CD scanning
-- **Industry security patterns** - Best practices implementation
-
-### **Performance Optimization** 
-- **Gas-efficient architecture** - EIP-1153 and ERC-6909 optimization
-- **Scalable design patterns** - Singleton architecture for efficiency
-- **Benchmark-verified performance** - Gas-optimized operations
-
-### **Operational Excellence**
-- **Comprehensive documentation** - Complete API and architecture docs
-- **Automated deployment** - Configurable scripts for any network
-- **Monitoring and alerting** - Production-ready observability
-- **Upgrade mechanisms** - Safe parameter updates and fee management
-
-## Continuous Integration
-
-### **GitHub Actions Pipeline**
-- **Automated testing** - All 111 tests run on every commit
-- **Security scanning** - Slither analysis on every PR
-- **Gas benchmarking** - Performance regression detection
-- **Code formatting** - Consistent style enforcement
-
-### **Quality Gates**
-- All tests must pass (111/111)
-- Zero high/medium security findings
-- Gas usage within targets
-- Code formatting compliance
-
-## Development Metrics
-
-- **Lines of Code**: ~2,000 (Solidity)
-- **Test Coverage**: 100% (critical path)
-- **Static Analysis**: Clean (zero Slither findings)
-- **Gas Efficiency**: Optimized (gas-efficient operations)
-- **Documentation**: Complete (architecture + API)
-
----
-
-**Built with ❤️ for the future of onchain social coordination.**
+**Comment System**: Event discussions with threaded conversations and likes  
+**Fixed Pricing**: Transparent tier-based pricing system  
+**Payment Processing**: Revenue splits and tip jar functionality  
+**Event Cancellation**: Full refund system with 90-day claim window  
+**Attendance Tracking**: Check-in system with proof badges  
+**Credentials**: Soulbound organizer credentials and attendance badges  
 
 ## Security Notice
 
 **UNAUDITED SOFTWARE - USE AT YOUR OWN RISK**
 
-This protocol has undergone extensive internal testing and static analysis but has **NOT** been formally audited by a third-party security firm. While we have implemented industry best practices and comprehensive testing (111 tests, zero static analysis findings), formal security audits are recommended before mainnet deployment for high-value use cases.
+This protocol has undergone extensive internal testing and static analysis but has **NOT** been formally audited by a third-party security firm. While we have implemented industry best practices and comprehensive testing, formal security audits are recommended before mainnet deployment for high-value use cases.
 
 Deploy to mainnet at your own risk.
 
