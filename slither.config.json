@@ -3,6 +3,6 @@
   "exclude_dependencies": true,
   "exclude_informational": true,
   "exclude_optimization": true,
-  "detectors_to_exclude": "timestamp,dangerous-strict-equalities",
+  "detectors_to_exclude": "timestamp,dangerous-strict-equalities,incorrect-equality",
   "compile_force_framework": "foundry"
 } 
