@@ -630,4 +630,146 @@ contract AssembleTest is Test {
 
         assertEq(assemble.pendingWithdrawals(alice), 0);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                    EVENT CANCELLATION & REFUND TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_CancelEvent() public {
+        uint256 eventId = _createSampleEvent();
+        
+        // Purchase tickets
+        vm.deal(bob, 1 ether);
+        vm.prank(bob);
+        assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1);
+        
+        // Send tips
+        vm.deal(charlie, 1 ether);
+        vm.prank(charlie);
+        assemble.tipEvent{ value: 0.05 ether }(eventId);
+        
+        // Cancel event
+        vm.prank(alice);
+        assemble.cancelEvent(eventId);
+        
+        assertTrue(assemble.eventCancelled(eventId));
+        
+        // Check refund amounts
+        (uint256 ticketRefund, uint256 tipRefund) = assemble.getRefundAmounts(eventId, bob);
+        assertEq(ticketRefund, 0.1 ether);
+        assertEq(tipRefund, 0);
+        
+        (ticketRefund, tipRefund) = assemble.getRefundAmounts(eventId, charlie);
+        assertEq(ticketRefund, 0);
+        assertEq(tipRefund, 0.05 ether);
+    }
+
+    function test_ClaimTicketRefund() public {
+        uint256 eventId = _createSampleEvent();
+        
+        // Purchase tickets
+        vm.deal(bob, 1 ether);
+        uint256 bobBalanceAfterPurchase = bob.balance - 0.1 ether; // After purchase
+        vm.prank(bob);
+        assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1);
+        
+        // Cancel event
+        vm.prank(alice);
+        assemble.cancelEvent(eventId);
+        
+        // Claim refund
+        vm.prank(bob);
+        assemble.claimTicketRefund(eventId);
+        
+        // Check Bob got full refund (should be back to original balance)
+        assertEq(bob.balance, 1 ether);
+        
+        // Check refund amount is now zero
+        (uint256 ticketRefund,) = assemble.getRefundAmounts(eventId, bob);
+        assertEq(ticketRefund, 0);
+    }
+
+    function test_ClaimTipRefund() public {
+        uint256 eventId = _createSampleEvent();
+        
+        // Send tips
+        vm.deal(charlie, 1 ether);
+        vm.prank(charlie);
+        assemble.tipEvent{ value: 0.05 ether }(eventId);
+        
+        // Cancel event
+        vm.prank(alice);
+        assemble.cancelEvent(eventId);
+        
+        // Claim refund
+        vm.prank(charlie);
+        assemble.claimTipRefund(eventId);
+        
+        // Check Charlie got full refund (should be back to original balance)
+        assertEq(charlie.balance, 1 ether);
+        
+        // Check refund amount is now zero
+        (, uint256 tipRefund) = assemble.getRefundAmounts(eventId, charlie);
+        assertEq(tipRefund, 0);
+    }
+
+    function test_CannotCancelAfterEventStarts() public {
+        uint256 eventId = _createSampleEvent();
+        
+        // Warp to event start time
+        vm.warp(block.timestamp + 1 days);
+        
+        vm.prank(alice);
+        vm.expectRevert("Event already started");
+        assemble.cancelEvent(eventId);
+    }
+
+    function test_CannotClaimRefundForActivEvent() public {
+        uint256 eventId = _createSampleEvent();
+        
+        // Purchase tickets
+        vm.deal(bob, 1 ether);
+        vm.prank(bob);
+        assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1);
+        
+        // Try to claim refund without cancellation
+        vm.prank(bob);
+        vm.expectRevert("Event not cancelled");
+        assemble.claimTicketRefund(eventId);
+    }
+
+    function test_OnlyOrganizerCanCancel() public {
+        uint256 eventId = _createSampleEvent();
+        
+        vm.prank(bob);
+        vm.expectRevert("Not event organizer");
+        assemble.cancelEvent(eventId);
+    }
+
+    function test_EmergencyRefund() public {
+        uint256 eventId = _createSampleEvent();
+        
+        // Purchase tickets
+        vm.deal(bob, 1 ether);
+        vm.prank(bob);
+        assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1);
+        
+        // Cancel event
+        vm.prank(alice);
+        assemble.cancelEvent(eventId);
+        
+        // Protocol admin can emergency refund
+        address[] memory users = new address[](1);
+        users[0] = bob;
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 0.1 ether;
+        
+        uint256 bobBalanceBefore = bob.balance;
+        
+        vm.deal(address(assemble), 1 ether); // Ensure contract has funds
+        vm.prank(feeTo);
+        assemble.emergencyRefund(eventId, users, amounts);
+        
+        assertEq(bob.balance, bobBalanceBefore + 0.1 ether);
+    }
 }

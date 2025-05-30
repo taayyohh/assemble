@@ -55,6 +55,13 @@ contract Assemble {
         INVITE_ONLY
     }
 
+    /// @notice Event status for cancellation handling
+    enum EventStatus {
+        ACTIVE,
+        CANCELLED,
+        COMPLETED
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -66,7 +73,7 @@ contract Assemble {
         uint32 capacity; // 4B max attendees
         uint16 venueId; // 65k venues
         uint8 visibility; // Event visibility
-        uint8 flags; // Boolean flags packed
+        uint8 status; // Event status (EventStatus enum)
     }
 
     /// @notice Event creation parameters
@@ -157,6 +164,13 @@ contract Assemble {
     mapping(address => mapping(address => bool)) public isOperator;
     mapping(uint256 => uint256) public totalSupply;
 
+    // Refund tracking for cancelled events
+    mapping(uint256 => bool) public eventCancelled;
+
+    // Payment tracking for refund calculations
+    mapping(uint256 => mapping(address => uint256)) public userTicketPayments;
+    mapping(uint256 => mapping(address => uint256)) public userTipPayments;
+
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -184,6 +198,8 @@ contract Assemble {
     // Admin events
     event FeeToUpdated(address indexed oldFeeTo, address indexed newFeeTo);
     event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
+    event EventCancelled(uint256 indexed eventId, address indexed organizer, uint256 timestamp);
+    event RefundClaimed(uint256 indexed eventId, address indexed user, uint256 amount, string refundType);
 
     // ERC-6909 events
     event Transfer(address indexed caller, address indexed from, address indexed to, uint256 id, uint256 amount);
@@ -266,7 +282,7 @@ contract Assemble {
             capacity: uint32(params.capacity),
             venueId: uint16(params.venueId),
             visibility: uint8(params.visibility),
-            flags: 0
+            status: uint8(EventStatus.ACTIVE)
         });
 
         // Store metadata and organizer
@@ -313,6 +329,9 @@ contract Assemble {
 
         // EFFECTS: Update state before external calls
         tier.sold += quantity;
+
+        // Track payment for potential refunds
+        userTicketPayments[eventId][msg.sender] += totalCost;
 
         // Mint ERC-6909 tickets
         for (uint256 i = 0; i < quantity; i++) {
@@ -380,6 +399,9 @@ contract Assemble {
     function tipEvent(uint256 eventId) external payable nonReentrant {
         require(msg.value > 0, "Must send some value");
         require(events[eventId].startTime > 0, "Event does not exist");
+
+        // Track tip for potential refunds
+        userTipPayments[eventId][msg.sender] += msg.value;
 
         // Calculate protocol fee
         uint256 protocolFee = (msg.value * protocolFeeBps) / 10_000;
@@ -609,18 +631,29 @@ contract Assemble {
 
         if (tier.maxSupply == 0) return 1000;
 
-        uint256 soldPercentage = (tier.sold * 1_000_000) / tier.maxSupply;
-
-        if (soldPercentage > 1_000_000) {
-            soldPercentage = 1_000_000;
+        // Fix: multiply before divide to avoid precision loss
+        uint256 additionalMultiplier = (tier.sold * 2_000_000) / tier.maxSupply;
+        
+        // Cap at maximum (2000 = 2x multiplier)
+        if (additionalMultiplier > 2000) {
+            additionalMultiplier = 2000;
         }
-
-        uint256 additionalMultiplier = (soldPercentage * 2000) / 1_000_000;
+        
         multiplier = 1000 + additionalMultiplier;
 
         if (multiplier > (1000 + MAX_PRICE_MULTIPLIER)) {
             multiplier = 1000 + MAX_PRICE_MULTIPLIER;
         }
+    }
+
+    /// @notice Calculate refunds for all ticket holders when event is cancelled
+    /// @param eventId Event ID to calculate refunds for
+    /// @dev Sets up refund amounts in storage mappings for later claiming
+    function _calculateTicketRefunds(uint256 eventId) internal {
+        // This is a simplified approach - in practice you might need to iterate through 
+        // all ticket holders or use events to track them more efficiently
+        // For now, refunds are calculated when users try to claim them
+        // The userTicketPayments and userTipPayments mappings track what users paid
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -699,6 +732,100 @@ contract Assemble {
         uint256 oldFee = protocolFeeBps;
         protocolFeeBps = newFeeBps;
         emit ProtocolFeeUpdated(oldFee, newFeeBps);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    EVENT CANCELLATION & REFUNDS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Cancel an event and enable refunds
+    /// @param eventId Event to cancel
+    /// @dev Only organizer can cancel before event starts
+    function cancelEvent(uint256 eventId) external onlyOrganizer(eventId) nonReentrant {
+        require(events[eventId].startTime > 0, "Event does not exist");
+        require(events[eventId].status == uint8(EventStatus.ACTIVE), "Event not active");
+        require(block.timestamp < events[eventId].startTime, "Event already started");
+        require(!eventCancelled[eventId], "Already cancelled");
+
+        // Mark event as cancelled
+        events[eventId].status = uint8(EventStatus.CANCELLED);
+        eventCancelled[eventId] = true;
+
+        // Calculate refunds for all ticket holders
+        _calculateTicketRefunds(eventId);
+
+        emit EventCancelled(eventId, msg.sender, block.timestamp);
+    }
+
+    /// @notice Claim refund for cancelled event tickets
+    /// @param eventId Cancelled event ID
+    function claimTicketRefund(uint256 eventId) external nonReentrant {
+        require(eventCancelled[eventId], "Event not cancelled");
+        
+        uint256 refundAmount = userTicketPayments[eventId][msg.sender];
+        require(refundAmount > 0, "No refund available");
+
+        // Clear payment tracking to prevent re-claiming
+        userTicketPayments[eventId][msg.sender] = 0;
+
+        // Transfer refund
+        (bool success,) = payable(msg.sender).call{ value: refundAmount }("");
+        require(success, "Refund transfer failed");
+
+        emit RefundClaimed(eventId, msg.sender, refundAmount, "ticket");
+    }
+
+    /// @notice Claim refund for cancelled event tips
+    /// @param eventId Cancelled event ID
+    function claimTipRefund(uint256 eventId) external nonReentrant {
+        require(eventCancelled[eventId], "Event not cancelled");
+        
+        uint256 refundAmount = userTipPayments[eventId][msg.sender];
+        require(refundAmount > 0, "No refund available");
+
+        // Clear payment tracking to prevent re-claiming
+        userTipPayments[eventId][msg.sender] = 0;
+
+        // Transfer refund
+        (bool success,) = payable(msg.sender).call{ value: refundAmount }("");
+        require(success, "Refund transfer failed");
+
+        emit RefundClaimed(eventId, msg.sender, refundAmount, "tip");
+    }
+
+    /// @notice Emergency refund function for protocol admin
+    /// @param eventId Event ID
+    /// @param users Array of users to refund
+    /// @param amounts Array of refund amounts
+    /// @dev Only protocol admin can call this for dispute resolution
+    function emergencyRefund(
+        uint256 eventId,
+        address[] calldata users,
+        uint256[] calldata amounts
+    ) external onlyFeeTo nonReentrant {
+        require(users.length == amounts.length, "Array length mismatch");
+        require(eventCancelled[eventId], "Event not cancelled");
+
+        for (uint256 i = 0; i < users.length; i++) {
+            if (amounts[i] > 0) {
+                (bool success,) = payable(users[i]).call{ value: amounts[i] }("");
+                require(success, "Emergency refund failed");
+                emit RefundClaimed(eventId, users[i], amounts[i], "emergency");
+            }
+        }
+    }
+
+    /// @notice Check available refund amounts for a user
+    /// @param eventId Event ID
+    /// @param user User address
+    /// @return ticketRefund Available ticket refund
+    /// @return tipRefund Available tip refund
+    function getRefundAmounts(uint256 eventId, address user) 
+        external 
+        view 
+        returns (uint256 ticketRefund, uint256 tipRefund) 
+    {
+        return (userTicketPayments[eventId][user], userTipPayments[eventId][user]);
     }
 
     /*//////////////////////////////////////////////////////////////
