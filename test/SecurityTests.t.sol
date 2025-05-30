@@ -5,11 +5,11 @@ import { Test, console } from "forge-std/Test.sol";
 import { Assemble } from "../src/Assemble.sol";
 import { SocialLibrary } from "../src/libraries/SocialLibrary.sol";
 
-/// @title Security Tests for Assemble Protocol  
+/// @title Security Tests for Assemble Protocol
 /// @notice Tests for potential security vulnerabilities and attack vectors
 contract SecurityTests is Test {
     Assemble public assemble;
-    
+
     address public feeTo = makeAddr("feeTo");
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
@@ -18,7 +18,7 @@ contract SecurityTests is Test {
 
     function setUp() public {
         assemble = new Assemble(feeTo);
-        
+
         // Fund accounts
         vm.deal(alice, 1000 ether);
         vm.deal(bob, 1000 ether);
@@ -32,12 +32,12 @@ contract SecurityTests is Test {
 
     function test_CannotDrainProtocolFunds() public {
         uint256 eventId = _createEvent(0.1 ether, 100);
-        
+
         // Users purchase tickets, creating protocol revenue
         uint256 price = assemble.calculatePrice(eventId, 0, 5);
         vm.deal(victim, price);
         vm.prank(victim);
-        assemble.purchaseTickets{value: price}(eventId, 0, 5);
+        assemble.purchaseTickets{ value: price }(eventId, 0, 5);
 
         // Attacker tries to claim protocol funds
         uint256 protocolFunds = assemble.pendingWithdrawals(feeTo);
@@ -51,19 +51,19 @@ contract SecurityTests is Test {
         uint256 feeToBalanceBefore = feeTo.balance;
         vm.prank(feeTo);
         assemble.claimFunds();
-        
+
         assertEq(feeTo.balance, feeToBalanceBefore + protocolFunds);
         assertEq(assemble.pendingWithdrawals(feeTo), 0);
     }
 
     function test_CannotManipulateRefundAmounts() public {
         uint256 eventId = _createEvent(0.1 ether, 100);
-        
+
         // Victim purchases tickets
         uint256 price = assemble.calculatePrice(eventId, 0, 2);
         vm.deal(victim, price);
         vm.prank(victim);
-        assemble.purchaseTickets{value: price}(eventId, 0, 2);
+        assemble.purchaseTickets{ value: price }(eventId, 0, 2);
 
         // Event gets cancelled
         vm.prank(alice); // organizer
@@ -82,7 +82,7 @@ contract SecurityTests is Test {
         uint256 victimBalanceBefore = victim.balance;
         vm.prank(victim);
         assemble.claimTicketRefund(eventId);
-        
+
         assertEq(victim.balance, victimBalanceBefore + price);
     }
 
@@ -91,12 +91,12 @@ contract SecurityTests is Test {
         uint256 eventId = _createEvent(0.01 ether, 10); // Only 10 tickets
 
         // Purchase up to capacity
-        for (uint i = 0; i < 10; i++) {
+        for (uint256 i = 0; i < 10; i++) {
             address buyer = makeAddr(string(abi.encodePacked("buyer", vm.toString(i))));
             uint256 buyerPrice = assemble.calculatePrice(eventId, 0, 1);
             vm.deal(buyer, buyerPrice);
             vm.prank(buyer);
-            assemble.purchaseTickets{value: buyerPrice}(eventId, 0, 1);
+            assemble.purchaseTickets{ value: buyerPrice }(eventId, 0, 1);
         }
 
         // Attacker tries to purchase more tickets
@@ -104,7 +104,7 @@ contract SecurityTests is Test {
         vm.deal(attacker, price);
         vm.prank(attacker);
         vm.expectRevert(bytes("!capacity"));
-        assemble.purchaseTickets{value: price}(eventId, 0, 1);
+        assemble.purchaseTickets{ value: price }(eventId, 0, 1);
     }
 
     function test_CannotExceedMaxTicketQuantity() public {
@@ -116,7 +116,7 @@ contract SecurityTests is Test {
         vm.deal(attacker, price);
         vm.prank(attacker);
         vm.expectRevert(bytes("!qty"));
-        assemble.purchaseTickets{value: price}(eventId, 0, maxQuantity + 1);
+        assemble.purchaseTickets{ value: price }(eventId, 0, maxQuantity + 1);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -134,7 +134,7 @@ contract SecurityTests is Test {
         // Organizer can cancel
         vm.prank(alice);
         assemble.cancelEvent(eventId);
-        
+
         assertTrue(assemble.isEventCancelled(eventId));
     }
 
@@ -184,7 +184,7 @@ contract SecurityTests is Test {
         vm.deal(attacker, requiredPrice - 1 wei);
         vm.prank(attacker);
         vm.expectRevert(bytes("!payment"));
-        assemble.purchaseTickets{value: requiredPrice - 1 wei}(eventId, 0, 1);
+        assemble.purchaseTickets{ value: requiredPrice - 1 wei }(eventId, 0, 1);
     }
 
     function test_ExcessPaymentIsRefunded() public {
@@ -194,9 +194,9 @@ contract SecurityTests is Test {
 
         vm.deal(attacker, excessPayment);
         uint256 attackerBalanceBefore = attacker.balance;
-        
+
         vm.prank(attacker);
-        assemble.purchaseTickets{value: excessPayment}(eventId, 0, 1);
+        assemble.purchaseTickets{ value: excessPayment }(eventId, 0, 1);
 
         // Should get refund for excess
         uint256 attackerBalanceAfter = attacker.balance;
@@ -214,7 +214,7 @@ contract SecurityTests is Test {
         uint256 price = assemble.calculatePrice(eventId, 0, 1);
         vm.deal(alice, price);
         vm.prank(alice);
-        assemble.purchaseTickets{value: price}(eventId, 0, 1);
+        assemble.purchaseTickets{ value: price }(eventId, 0, 1);
 
         // Cancel event to enable refunds
         vm.prank(alice);
@@ -239,18 +239,18 @@ contract SecurityTests is Test {
 
         // Two users try to buy the same ticket simultaneously
         uint256 price = assemble.calculatePrice(eventId, 0, 1);
-        
+
         vm.deal(victim, price);
         vm.deal(attacker, price);
 
         // First purchase succeeds
         vm.prank(victim);
-        assemble.purchaseTickets{value: price}(eventId, 0, 1);
+        assemble.purchaseTickets{ value: price }(eventId, 0, 1);
 
         // Second purchase fails (no more capacity)
         vm.prank(attacker);
         vm.expectRevert(bytes("!capacity"));
-        assemble.purchaseTickets{value: price}(eventId, 0, 1);
+        assemble.purchaseTickets{ value: price }(eventId, 0, 1);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -454,4 +454,4 @@ contract SecurityTests is Test {
         vm.prank(alice);
         return assemble.createEvent(params, tiers, splits);
     }
-} 
+}

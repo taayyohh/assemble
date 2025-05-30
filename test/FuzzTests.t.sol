@@ -25,7 +25,7 @@ contract FuzzTests is Test {
 
     function setUp() public {
         assemble = new Assemble(feeTo);
-        
+
         // Fund test accounts
         vm.deal(alice, 1000 ether);
         vm.deal(bob, 1000 ether);
@@ -42,7 +42,9 @@ contract FuzzTests is Test {
         uint256 capacity,
         uint256 tierPrice,
         uint256 tierSupply
-    ) public {
+    )
+        public
+    {
         // Bound inputs to reasonable ranges
         startTimeOffset = bound(startTimeOffset, 1 hours, 365 days);
         duration = bound(duration, 1 hours, 30 days);
@@ -83,22 +85,18 @@ contract FuzzTests is Test {
 
         // Verify event was created correctly
         (uint128 basePrice, uint64 storedStartTime, uint32 storedCapacity,,,) = assemble.events(eventId);
-        
+
         assertEq(basePrice, tierPrice);
         assertEq(storedStartTime, startTime);
         assertEq(storedCapacity, capacity);
         assertEq(assemble.eventOrganizers(eventId), alice);
     }
 
-    function testFuzz_PaymentSplitsAlwaysTotal100Percent(
-        uint256 split1,
-        uint256 split2,
-        uint256 split3
-    ) public {
+    function testFuzz_PaymentSplitsAlwaysTotal100Percent(uint256 split1, uint256 split2, uint256 split3) public {
         // Ensure splits total exactly 10,000 basis points (100%)
         split1 = bound(split1, 1, 9998);
-        split2 = bound(split2, 1, 10000 - split1 - 1);
-        split3 = 10000 - split1 - split2;
+        split2 = bound(split2, 1, 10_000 - split1 - 1);
+        split3 = 10_000 - split1 - split2;
 
         Assemble.EventParams memory params = Assemble.EventParams({
             title: "Split Test",
@@ -132,12 +130,12 @@ contract FuzzTests is Test {
 
         // Verify splits were stored correctly
         Assemble.PaymentSplit[] memory storedSplits = assemble.getPaymentSplits(eventId);
-        
+
         uint256 totalBps = 0;
-        for (uint i = 0; i < storedSplits.length; i++) {
+        for (uint256 i = 0; i < storedSplits.length; i++) {
             totalBps += storedSplits[i].basisPoints;
         }
-        
+
         assertEq(totalBps, 10_000, "Payment splits must total 100%");
     }
 
@@ -149,37 +147,36 @@ contract FuzzTests is Test {
         uint256 quantity,
         uint256 tierPrice,
         uint256 paymentAmount
-    ) public {
+    )
+        public
+    {
         quantity = bound(quantity, 1, MAX_QUANTITY);
         tierPrice = bound(tierPrice, 0.001 ether, 1 ether);
-        
+
         uint256 eventId = _createFuzzEvent(tierPrice, 100);
-        
+
         uint256 totalCost = assemble.calculatePrice(eventId, 0, quantity);
         paymentAmount = bound(paymentAmount, totalCost, totalCost + 1 ether);
 
         vm.deal(bob, paymentAmount);
         vm.prank(bob);
-        assemble.purchaseTickets{value: paymentAmount}(eventId, 0, quantity);
+        assemble.purchaseTickets{ value: paymentAmount }(eventId, 0, quantity);
 
         // Verify tickets were minted correctly
         uint256 tokenId = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
         assertGt(assemble.balanceOf(bob, tokenId), 0, "User should have tickets");
 
         // Verify tier sold count updated
-        (, , , uint256 sold, , ,) = assemble.ticketTiers(eventId, 0);
+        (,,, uint256 sold,,,) = assemble.ticketTiers(eventId, 0);
         assertEq(sold, quantity, "Sold count should match quantity purchased");
     }
 
-    function testFuzz_TicketPriceCalculation(
-        uint256 basePrice,
-        uint256 quantity
-    ) public {
+    function testFuzz_TicketPriceCalculation(uint256 basePrice, uint256 quantity) public {
         basePrice = bound(basePrice, 0, 10 ether);
         quantity = bound(quantity, 1, MAX_QUANTITY);
 
         uint256 eventId = _createFuzzEvent(basePrice, 100);
-        
+
         uint256 calculatedPrice = assemble.calculatePrice(eventId, 0, quantity);
         uint256 expectedPrice = basePrice * quantity;
 
@@ -195,26 +192,24 @@ contract FuzzTests is Test {
                         SOCIAL GRAPH FUZZ TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzz_FriendSystemIntegrity(
-        address[] memory friends
-    ) public {
+    function testFuzz_FriendSystemIntegrity(address[] memory friends) public {
         vm.assume(friends.length <= 50); // Reasonable limit for gas
-        
+
         // Filter out invalid addresses and duplicates
         address[] memory validFriends = new address[](friends.length);
         uint256 validCount = 0;
-        
-        for (uint i = 0; i < friends.length; i++) {
+
+        for (uint256 i = 0; i < friends.length; i++) {
             if (friends[i] != address(0) && friends[i] != alice) {
                 // Check for duplicates
                 bool isDuplicate = false;
-                for (uint j = 0; j < validCount; j++) {
+                for (uint256 j = 0; j < validCount; j++) {
                     if (validFriends[j] == friends[i]) {
                         isDuplicate = true;
                         break;
                     }
                 }
-                
+
                 if (!isDuplicate) {
                     validFriends[validCount] = friends[i];
                     validCount++;
@@ -223,7 +218,7 @@ contract FuzzTests is Test {
         }
 
         // Add friends
-        for (uint i = 0; i < validCount; i++) {
+        for (uint256 i = 0; i < validCount; i++) {
             if (!assemble.isFriend(alice, validFriends[i])) {
                 vm.prank(alice);
                 assemble.addFriend(validFriends[i]);
@@ -238,7 +233,7 @@ contract FuzzTests is Test {
         if (validCount > 0) {
             vm.prank(alice);
             assemble.removeFriend(validFriends[0]);
-            
+
             address[] memory aliceFriendsAfter = assemble.getFriends(alice);
             assertEq(aliceFriendsAfter.length, validCount - 1, "Friend should be removed");
             assertFalse(assemble.isFriend(alice, validFriends[0]), "Friendship should be false");
@@ -249,25 +244,22 @@ contract FuzzTests is Test {
                         REFUND SYSTEM FUZZ TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzz_RefundIntegrity(
-        uint256 ticketQuantity,
-        uint256 tipAmount
-    ) public {
+    function testFuzz_RefundIntegrity(uint256 ticketQuantity, uint256 tipAmount) public {
         ticketQuantity = bound(ticketQuantity, 1, 10);
         tipAmount = bound(tipAmount, 0.01 ether, 1 ether);
 
         uint256 eventId = _createFuzzEvent(0.1 ether, 100);
-        
+
         uint256 ticketCost = assemble.calculatePrice(eventId, 0, ticketQuantity);
-        
+
         // Purchase tickets
         vm.deal(bob, ticketCost + tipAmount);
         vm.prank(bob);
-        assemble.purchaseTickets{value: ticketCost}(eventId, 0, ticketQuantity);
+        assemble.purchaseTickets{ value: ticketCost }(eventId, 0, ticketQuantity);
 
         // Send tip
         vm.prank(bob);
-        assemble.tipEvent{value: tipAmount}(eventId);
+        assemble.tipEvent{ value: tipAmount }(eventId);
 
         // Record balances before cancellation
         uint256 bobBalanceBeforeCancel = bob.balance;
@@ -278,14 +270,14 @@ contract FuzzTests is Test {
 
         // Check refund amounts
         (uint256 ticketRefund, uint256 tipRefundAmount) = assemble.getRefundAmounts(eventId, bob);
-        
+
         assertEq(ticketRefund, ticketCost, "Ticket refund should equal ticket cost");
         assertEq(tipRefundAmount, tipAmount, "Tip refund should equal tip amount");
 
         // Claim refunds
         vm.prank(bob);
         assemble.claimTicketRefund(eventId);
-        
+
         vm.prank(bob);
         assemble.claimTipRefund(eventId);
 
@@ -298,10 +290,7 @@ contract FuzzTests is Test {
                         COMMENT SYSTEM FUZZ TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function testFuzz_CommentSystem(
-        string memory content,
-        uint256 likeCount
-    ) public {
+    function testFuzz_CommentSystem(string memory content, uint256 likeCount) public {
         vm.assume(bytes(content).length > 0 && bytes(content).length <= 1000);
         likeCount = bound(likeCount, 1, 100);
 
@@ -314,7 +303,7 @@ contract FuzzTests is Test {
         uint256 commentId = 1; // First comment
 
         // Create multiple users to like the comment
-        for (uint i = 0; i < likeCount; i++) {
+        for (uint256 i = 0; i < likeCount; i++) {
             address liker = address(uint160(1000 + i));
             vm.prank(liker);
             assemble.likeComment(commentId);
@@ -334,16 +323,13 @@ contract FuzzTests is Test {
     function testFuzz_MaximumValues() public {
         // Test with maximum allowed values
         uint256 eventId = _createFuzzEvent(type(uint128).max, type(uint32).max);
-        
+
         // Should not revert with max values - check by getting event data
-        (,uint64 startTime,,,,) = assemble.events(eventId);
+        (, uint64 startTime,,,,) = assemble.events(eventId);
         assertTrue(startTime > 0, "Event should be created with max values");
     }
 
-    function testFuzz_ProtocolFeeCalculation(
-        uint256 amount,
-        uint256 feeBps
-    ) public {
+    function testFuzz_ProtocolFeeCalculation(uint256 amount, uint256 feeBps) public {
         amount = bound(amount, 1, 100 ether);
         feeBps = bound(feeBps, 0, 1000); // 0-10% max protocol fee
 
@@ -355,7 +341,7 @@ contract FuzzTests is Test {
 
         vm.deal(bob, amount);
         vm.prank(bob);
-        assemble.tipEvent{value: amount}(eventId);
+        assemble.tipEvent{ value: amount }(eventId);
 
         uint256 expectedFee = (amount * feeBps) / 10_000;
         uint256 actualFee = assemble.pendingWithdrawals(feeTo);
@@ -396,4 +382,4 @@ contract FuzzTests is Test {
         vm.prank(alice);
         return assemble.createEvent(params, tiers, splits);
     }
-} 
+}

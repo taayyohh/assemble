@@ -19,7 +19,7 @@ contract EdgeCaseTests is Test {
 
     function setUp() public {
         assemble = new Assemble(feeTo);
-        
+
         // Fund test accounts with varying amounts
         vm.deal(alice, 1000 ether);
         vm.deal(bob, 1000 ether);
@@ -63,7 +63,7 @@ contract EdgeCaseTests is Test {
         uint256 eventId = assemble.createEvent(params, tiers, splits);
 
         // Verify max capacity was stored correctly
-        (, , uint32 storedCapacity, , ,) = assemble.events(eventId);
+        (,, uint32 storedCapacity,,,) = assemble.events(eventId);
         assertEq(storedCapacity, maxCapacity);
     }
 
@@ -71,7 +71,7 @@ contract EdgeCaseTests is Test {
         uint256 eventId = _createEvent(0, 100); // Free tickets
 
         vm.prank(bob);
-        assemble.purchaseTickets{value: 0}(eventId, 0, 1);
+        assemble.purchaseTickets{ value: 0 }(eventId, 0, 1);
 
         // Verify free ticket was minted
         uint256 tokenId = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
@@ -86,13 +86,13 @@ contract EdgeCaseTests is Test {
         uint256 eventId = _createEvent(0.01 ether, maxQuantity); // Set capacity to max quantity
 
         uint256 totalCost = assemble.calculatePrice(eventId, 0, maxQuantity);
-        
+
         vm.deal(bob, totalCost);
         vm.prank(bob);
-        assemble.purchaseTickets{value: totalCost}(eventId, 0, maxQuantity);
+        assemble.purchaseTickets{ value: totalCost }(eventId, 0, maxQuantity);
 
         // Verify all tickets were minted
-        (, , uint256 sold, , , ,) = assemble.ticketTiers(eventId, 0);
+        (,, uint256 sold,,,,) = assemble.ticketTiers(eventId, 0);
         assertEq(sold, maxQuantity);
     }
 
@@ -126,7 +126,7 @@ contract EdgeCaseTests is Test {
         uint256 bpsPerSplit = 10_000 / maxSplits; // Equal distribution
         uint256 remainder = 10_000 % maxSplits;
 
-        for (uint i = 0; i < maxSplits; i++) {
+        for (uint256 i = 0; i < maxSplits; i++) {
             address recipient = makeAddr(string(abi.encodePacked("recipient", vm.toString(i))));
             uint256 bps = bpsPerSplit;
             if (i == 0) bps += remainder; // First recipient gets remainder
@@ -148,7 +148,7 @@ contract EdgeCaseTests is Test {
 
     function test_EventStartingInFarFuture() public {
         uint256 farFuture = block.timestamp + 100 * 365 days; // 100 years
-        
+
         Assemble.EventParams memory params = Assemble.EventParams({
             title: "Far Future Event",
             description: "Event in distant future",
@@ -183,7 +183,7 @@ contract EdgeCaseTests is Test {
 
     function test_TicketSaleEndingAtEventStart() public {
         uint256 startTime = block.timestamp + 1 days;
-        
+
         Assemble.EventParams memory params = Assemble.EventParams({
             title: "Last Minute Sales",
             description: "Sales end exactly at event start",
@@ -216,7 +216,7 @@ contract EdgeCaseTests is Test {
         uint256 price = assemble.calculatePrice(eventId, 0, 1);
         vm.deal(bob, price);
         vm.prank(bob);
-        assemble.purchaseTickets{value: price}(eventId, 0, 1);
+        assemble.purchaseTickets{ value: price }(eventId, 0, 1);
 
         // Fast forward past sale end time
         vm.warp(startTime);
@@ -225,17 +225,17 @@ contract EdgeCaseTests is Test {
         vm.deal(charlie, price);
         vm.prank(charlie);
         vm.expectRevert(bytes("ended"));
-        assemble.purchaseTickets{value: price}(eventId, 0, 1);
+        assemble.purchaseTickets{ value: price }(eventId, 0, 1);
     }
 
     function test_RefundClaimDeadlineEdge() public {
         uint256 eventId = _createEvent(0.1 ether, 100);
-        
+
         // Purchase ticket
         uint256 price = assemble.calculatePrice(eventId, 0, 1);
         vm.deal(bob, price);
         vm.prank(bob);
-        assemble.purchaseTickets{value: price}(eventId, 0, 1);
+        assemble.purchaseTickets{ value: price }(eventId, 0, 1);
 
         // Cancel event
         vm.prank(alice);
@@ -252,10 +252,10 @@ contract EdgeCaseTests is Test {
 
         // Create another scenario one second past deadline
         uint256 eventId2 = _createEvent(0.1 ether, 100);
-        
+
         vm.deal(charlie, price);
         vm.prank(charlie);
-        assemble.purchaseTickets{value: price}(eventId2, 0, 1);
+        assemble.purchaseTickets{ value: price }(eventId2, 0, 1);
 
         vm.prank(alice);
         assemble.cancelEvent(eventId2);
@@ -284,7 +284,7 @@ contract EdgeCaseTests is Test {
         // Large quantities should be caught by quantity check before overflow
         // MAX_TICKET_QUANTITY is 50, so 51 should fail
         vm.expectRevert(bytes("!qty"));
-        assemble.purchaseTickets{value: 0}(eventId, 0, 51); // Test the actual purchase, not just calculation
+        assemble.purchaseTickets{ value: 0 }(eventId, 0, 51); // Test the actual purchase, not just calculation
     }
 
     function test_ProtocolFeeRounding() public {
@@ -293,14 +293,14 @@ contract EdgeCaseTests is Test {
 
         // Tip amount that doesn't divide evenly by protocol fee
         uint256 tipAmount = 1003 wei; // Odd amount
-        
+
         vm.deal(bob, tipAmount);
         vm.prank(bob);
-        assemble.tipEvent{value: tipAmount}(eventId);
+        assemble.tipEvent{ value: tipAmount }(eventId);
 
         uint256 expectedFee = (tipAmount * 50) / 10_000; // 0.5%
         uint256 actualFee = assemble.pendingWithdrawals(feeTo);
-        
+
         assertEq(actualFee, expectedFee);
         // Verify organizer gets remainder
         uint256 organizerFunds = assemble.pendingWithdrawals(alice);
@@ -337,11 +337,11 @@ contract EdgeCaseTests is Test {
         // This would require a malicious contract that tries to reenter
         // For now, verify the nonReentrant modifier is in place
         uint256 eventId = _createEvent(0.1 ether, 100);
-        
+
         uint256 price = assemble.calculatePrice(eventId, 0, 1);
         vm.deal(bob, price);
         vm.prank(bob);
-        assemble.purchaseTickets{value: price}(eventId, 0, 1);
+        assemble.purchaseTickets{ value: price }(eventId, 0, 1);
 
         // Successful purchase means reentrancy protection didn't interfere
         uint256 tokenId = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
@@ -354,7 +354,7 @@ contract EdgeCaseTests is Test {
 
     function test_FriendListWithManyFriends() public {
         // Add many friends to test gas limits
-        for (uint i = 0; i < 100; i++) {
+        for (uint256 i = 0; i < 100; i++) {
             address friend = makeAddr(string(abi.encodePacked("friend", vm.toString(i))));
             vm.prank(alice);
             assemble.addFriend(friend);
@@ -414,7 +414,7 @@ contract EdgeCaseTests is Test {
         assemble.checkIn(eventId);
 
         uint256 badgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
-        
+
         // Try to transfer soulbound token
         vm.prank(alice);
         vm.expectRevert(bytes("soulbound"));
@@ -426,7 +426,7 @@ contract EdgeCaseTests is Test {
         assemble.claimOrganizerCredential(eventId);
 
         uint256 credId = assemble.generateTokenId(Assemble.TokenType.ORGANIZER_CRED, eventId, 0, 0);
-        
+
         vm.prank(alice);
         vm.expectRevert(bytes("soulbound"));
         assemble.transfer(alice, bob, credId, 1);
@@ -441,7 +441,7 @@ contract EdgeCaseTests is Test {
 
         // Create comment at max length (1000 chars)
         string memory maxContent = string(new bytes(1000));
-        
+
         vm.prank(alice);
         assemble.postComment(eventId, maxContent, 0);
 
@@ -455,7 +455,7 @@ contract EdgeCaseTests is Test {
 
         // Try to create comment over max length
         string memory tooLong = string(new bytes(1001));
-        
+
         vm.prank(alice);
         vm.expectRevert(bytes("Invalid length"));
         assemble.postComment(eventId, tooLong, 0);
@@ -502,4 +502,4 @@ contract EdgeCaseTests is Test {
         vm.prank(alice);
         return assemble.createEvent(params, tiers, splits);
     }
-} 
+}
