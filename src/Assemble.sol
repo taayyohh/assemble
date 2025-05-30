@@ -1,17 +1,73 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import { CommentLibrary } from "./libraries/CommentLibrary.sol";
 import { SocialLibrary } from "./libraries/SocialLibrary.sol";
+import { CommentLibrary } from "./libraries/CommentLibrary.sol";
 import { RefundLibrary } from "./libraries/RefundLibrary.sol";
 
-/// @title Assemble Protocol
-/// @notice A foundational singleton smart contract protocol for onchain social coordination and event management
-/// @dev Built with ERC-6909 multi-token architecture and EIP-1153 transient storage for gas optimization
-/// @author @taayyohh
+/// @title Assemble - Decentralized Event Management Protocol
+/// @notice A comprehensive protocol for managing events, tickets, social interactions, and payments onchain
+/// @dev Uses ERC-6909 for multi-token functionality and EIP-1153 for gas optimization
 contract Assemble {
     /*//////////////////////////////////////////////////////////////
-                                CONSTANTS
+                            CUSTOM ERRORS
+    //////////////////////////////////////////////////////////////*/
+
+    error NotEventOrganizer();
+    error NotAuthorized();
+    error InvalidFeeRecipient();
+    error InvalidFutureTime();
+    error InvalidEndTime();
+    error NoTiers();
+    error InvalidCapacity();
+    error TierMustHaveSupply();
+    error InvalidSaleTimes();
+    error EventNotFound();
+    error InvalidQuantity();
+    error TierNotFound();
+    error SaleNotStarted();
+    error SaleEnded();
+    error InsufficientCapacity();
+    error InsufficientPayment();
+    error RefundFailed();
+    error MustSendValue();
+    error NoFundsToClaim();
+    error TransferFailed();
+    error CannotAddYourself();
+    error InvalidAddress();
+    error AlreadyFriends();
+    error NotFriends();
+    error Banned();
+    error InvalidContentLength();
+    error ParentNotFound();
+    error ParentDeleted();
+    error AlreadyLiked();
+    error NotLiked();
+    error CommentNotFound();
+    error NoSplits();
+    error TooManySplits();
+    error InvalidRecipient();
+    error InvalidBasisPoints();
+    error InvalidTotalBasisPoints();
+    error FeeToHigh();
+    error EventNotActive();
+    error EventAlreadyStarted();
+    error AlreadyCancelled();
+    error EventNotCancelled();
+    error RefundDeadlineExpired();
+    error NoRefundAvailable();
+    error EventNotStarted();
+    error EventEnded();
+    error NotOrganizer();
+    error EventNotCompleted();
+    error RefundDeadlineNotExpired();
+    error AlreadyBanned();
+    error NotBanned();
+    error InsufficientPermission();
+    error SoulboundToken();
+
+    /*//////////////////////////////////////////////////////////////
+                            CONSTANTS
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Maximum number of payment splits per event for gas optimization
@@ -217,13 +273,13 @@ contract Assemble {
 
     /// @notice Only event organizer modifier
     modifier onlyOrganizer(uint256 eventId) {
-        require(eventOrganizers[eventId] == msg.sender, "Not event organizer");
+        if (eventOrganizers[eventId] != msg.sender) revert NotEventOrganizer();
         _;
     }
 
     /// @notice Only fee recipient modifier
     modifier onlyFeeTo() {
-        require(msg.sender == feeTo, "Not authorized");
+        if (msg.sender != feeTo) revert NotAuthorized();
         _;
     }
 
@@ -234,7 +290,7 @@ contract Assemble {
     /// @notice Initialize the Assemble protocol
     /// @param _feeTo Initial fee recipient address
     constructor(address _feeTo) {
-        require(_feeTo != address(0), "Invalid fee recipient");
+        if (_feeTo == address(0)) revert InvalidFeeRecipient();
         feeTo = _feeTo;
         emit FeeToUpdated(address(0), _feeTo);
     }
@@ -257,10 +313,10 @@ contract Assemble {
         returns (uint256 eventId)
     {
         // Input validation
-        require(params.startTime > block.timestamp, "!future");
-        require(params.endTime > params.startTime, "!endTime");
-        require(tiers.length > 0, "!tiers");
-        require(params.capacity > 0, "!capacity");
+        if (params.startTime <= block.timestamp) revert InvalidFutureTime();
+        if (params.endTime <= params.startTime) revert InvalidEndTime();
+        if (tiers.length == 0) revert NoTiers();
+        if (params.capacity == 0) revert InvalidCapacity();
 
         // Validate payment splits
         _validatePaymentSplits(splits);
@@ -284,8 +340,8 @@ contract Assemble {
 
         // Store ticket tiers
         for (uint256 i = 0; i < tiers.length; i++) {
-            require(tiers[i].maxSupply > 0, "Tier must have supply");
-            require(tiers[i].startSaleTime <= tiers[i].endSaleTime, "Invalid sale times");
+            if (tiers[i].maxSupply == 0) revert TierMustHaveSupply();
+            if (tiers[i].startSaleTime > tiers[i].endSaleTime) revert InvalidSaleTimes();
             ticketTiers[eventId][i] = tiers[i];
         }
 
@@ -307,18 +363,18 @@ contract Assemble {
     /// @param quantity Number of tickets to purchase
     function purchaseTickets(uint256 eventId, uint256 tierId, uint256 quantity) external payable nonReentrant {
         // CHECKS: Validate inputs and event state
-        require(events[eventId].startTime > 0, "!event");
-        require(quantity > 0 && quantity <= MAX_TICKET_QUANTITY, "!qty");
+        if (events[eventId].startTime == 0) revert EventNotFound();
+        if (quantity == 0 || quantity > MAX_TICKET_QUANTITY) revert InvalidQuantity();
 
         TicketTier storage tier = ticketTiers[eventId][tierId];
-        require(tier.maxSupply > 0, "!tier");
-        require(block.timestamp >= tier.startSaleTime, "!started");
-        require(block.timestamp <= tier.endSaleTime, "ended");
-        require(tier.sold + quantity <= tier.maxSupply, "!capacity");
+        if (tier.maxSupply == 0) revert TierNotFound();
+        if (block.timestamp < tier.startSaleTime) revert SaleNotStarted();
+        if (block.timestamp > tier.endSaleTime) revert SaleEnded();
+        if (tier.sold + quantity > tier.maxSupply) revert InsufficientCapacity();
 
         // Calculate total cost with dynamic pricing
         uint256 totalCost = calculatePrice(eventId, tierId, quantity);
-        require(msg.value >= totalCost, "!payment");
+        if (msg.value < totalCost) revert InsufficientPayment();
 
         // EFFECTS: Update state before external calls
         tier.sold += quantity;
@@ -347,7 +403,7 @@ contract Assemble {
         // INTERACTIONS: Refund excess payment last
         if (msg.value > totalCost) {
             (bool success,) = payable(msg.sender).call{ value: msg.value - totalCost }("");
-            require(success, "!refund");
+            if (!success) revert RefundFailed();
         }
 
         emit TicketPurchased(eventId, msg.sender, quantity, totalCost);
@@ -368,7 +424,7 @@ contract Assemble {
         returns (uint256 totalPrice)
     {
         TicketTier storage tier = ticketTiers[eventId][tierId];
-        require(tier.maxSupply > 0, "!tier");
+        if (tier.maxSupply == 0) revert TierNotFound();
 
         uint256 basePrice = tier.price;
 
@@ -389,8 +445,8 @@ contract Assemble {
     /// @dev Tips are distributed according to the event's payment splits, allowing flexible recipient allocation
     /// @dev Example: Birthday party where birthday person gets 80%, organizer gets 20% via payment splits
     function tipEvent(uint256 eventId) external payable nonReentrant {
-        require(msg.value > 0, "Must send some value");
-        require(events[eventId].startTime > 0, "Event does not exist");
+        if (msg.value == 0) revert MustSendValue();
+        if (events[eventId].startTime == 0) revert EventNotFound();
 
         // Track tip for potential refunds
         userTipPayments[eventId][msg.sender] += msg.value;
@@ -413,14 +469,14 @@ contract Assemble {
     /// @notice Claim pending funds (pull payment pattern)
     function claimFunds() external nonReentrant {
         uint256 amount = pendingWithdrawals[msg.sender];
-        require(amount > 0, "No funds to claim");
+        if (amount == 0) revert NoFundsToClaim();
 
         // Effects before interactions
         pendingWithdrawals[msg.sender] = 0;
 
         // Safe transfer
         (bool success,) = payable(msg.sender).call{ value: amount }("");
-        require(success, "Transfer failed");
+        if (!success) revert TransferFailed();
 
         emit FundsClaimed(msg.sender, amount);
     }
@@ -432,9 +488,9 @@ contract Assemble {
     /// @notice Add a friend to your social graph
     /// @param friend Address to add as friend
     function addFriend(address friend) external {
-        require(friend != msg.sender, "Cannot add yourself");
-        require(friend != address(0), "Invalid address");
-        require(!isFriend[msg.sender][friend], "Already friends");
+        if (friend == msg.sender) revert CannotAddYourself();
+        if (friend == address(0)) revert InvalidAddress();
+        if (isFriend[msg.sender][friend]) revert AlreadyFriends();
 
         isFriend[msg.sender][friend] = true;
         friendLists[msg.sender].push(friend);
@@ -445,7 +501,7 @@ contract Assemble {
     /// @notice Remove a friend from your social graph
     /// @param friend Address to remove as friend
     function removeFriend(address friend) external {
-        require(isFriend[msg.sender][friend], "Not friends");
+        if (!isFriend[msg.sender][friend]) revert NotFriends();
 
         isFriend[msg.sender][friend] = false;
 
@@ -466,7 +522,7 @@ contract Assemble {
     /// @param eventId Event identifier
     /// @param status New RSVP status
     function updateRSVP(uint256 eventId, SocialLibrary.RSVPStatus status) external {
-        require(events[eventId].startTime > 0, "!event");
+        if (events[eventId].startTime == 0) revert EventNotFound();
         SocialLibrary.updateRSVP(rsvps, attendeeLists, eventId, msg.sender, status);
         emit RSVPUpdated(eventId, msg.sender, status);
     }
@@ -475,10 +531,10 @@ contract Assemble {
     /// @param eventId Event to invite friends to
     /// @param friends Array of friend addresses to invite
     function inviteFriends(uint256 eventId, address[] calldata friends) external view {
-        require(events[eventId].startTime > 0, "Event does not exist");
+        if (events[eventId].startTime == 0) revert EventNotFound();
 
         for (uint256 i = 0; i < friends.length; i++) {
-            require(isFriend[msg.sender][friends[i]], "Not friends");
+            if (!isFriend[msg.sender][friends[i]]) revert NotFriends();
         }
     }
 
@@ -487,14 +543,14 @@ contract Assemble {
     //////////////////////////////////////////////////////////////*/
 
     function postComment(uint256 eventId, string calldata content, uint256 parentId) external {
-        require(events[eventId].startTime > 0, "!event");
-        require(!bannedUsers[msg.sender], "Banned");
-        require(bytes(content).length > 0 && bytes(content).length <= 1000, "Invalid length");
+        if (events[eventId].startTime == 0) revert EventNotFound();
+        if (bannedUsers[msg.sender]) revert Banned();
+        if (bytes(content).length == 0 || bytes(content).length > 1000) revert InvalidContentLength();
 
         // Validate parent comment if replying
         if (parentId > 0) {
-            require(comments[parentId].timestamp > 0, "Parent not found");
-            require(!comments[parentId].isDeleted, "Parent deleted");
+            if (comments[parentId].timestamp == 0) revert ParentNotFound();
+            if (comments[parentId].isDeleted) revert ParentDeleted();
         }
 
         uint256 commentId = nextCommentId++;
@@ -513,25 +569,25 @@ contract Assemble {
     }
 
     function likeComment(uint256 commentId) external {
-        require(!commentLikes[commentId][msg.sender], "already liked");
+        if (commentLikes[commentId][msg.sender]) revert AlreadyLiked();
         commentLikes[commentId][msg.sender] = true;
         comments[commentId].likes++;
         emit CommentLiked(commentId, msg.sender);
     }
 
     function unlikeComment(uint256 commentId) external {
-        require(commentLikes[commentId][msg.sender], "not liked");
+        if (!commentLikes[commentId][msg.sender]) revert NotLiked();
         commentLikes[commentId][msg.sender] = false;
         comments[commentId].likes--;
         emit CommentUnliked(commentId, msg.sender);
     }
 
     function deleteComment(uint256 commentId, uint256 eventId) external {
-        require(events[eventId].startTime > 0, "!event");
+        if (events[eventId].startTime == 0) revert EventNotFound();
 
         CommentLibrary.Comment storage comment = comments[commentId];
-        require(comment.timestamp > 0, "Comment not found");
-        require(comment.author == msg.sender || eventOrganizers[eventId] == msg.sender || msg.sender == feeTo, "!auth");
+        if (comment.timestamp == 0) revert CommentNotFound();
+        if (comment.author != msg.sender && eventOrganizers[eventId] != msg.sender && msg.sender != feeTo) revert NotAuthorized();
 
         comment.isDeleted = true;
         emit CommentDeleted(commentId, msg.sender);
@@ -573,18 +629,18 @@ contract Assemble {
     }
 
     function banUser(address user, uint256 eventId) external {
-        require(events[eventId].startTime > 0, "!event");
-        require(eventOrganizers[eventId] == msg.sender || msg.sender == feeTo, "!auth");
-        require(!bannedUsers[user], "already banned");
+        if (events[eventId].startTime == 0) revert EventNotFound();
+        if (eventOrganizers[eventId] != msg.sender && msg.sender != feeTo) revert NotAuthorized();
+        if (bannedUsers[user]) revert AlreadyBanned();
 
         bannedUsers[user] = true;
         emit UserBanned(user, msg.sender);
     }
 
     function unbanUser(address user, uint256 eventId) external {
-        require(events[eventId].startTime > 0, "!event");
-        require(eventOrganizers[eventId] == msg.sender || msg.sender == feeTo, "!auth");
-        require(bannedUsers[user], "not banned");
+        if (events[eventId].startTime == 0) revert EventNotFound();
+        if (eventOrganizers[eventId] != msg.sender && msg.sender != feeTo) revert NotAuthorized();
+        if (!bannedUsers[user]) revert NotBanned();
 
         bannedUsers[user] = false;
         emit UserUnbanned(user, msg.sender);
@@ -595,16 +651,14 @@ contract Assemble {
     //////////////////////////////////////////////////////////////*/
 
     function transfer(address from, address to, uint256 id, uint256 amount) external {
-        require(
-            msg.sender == from || isOperator[from][msg.sender] || allowance[from][msg.sender][id] >= amount, "!perm"
-        );
+        if (msg.sender != from && !isOperator[from][msg.sender] && allowance[from][msg.sender][id] < amount) {
+            revert InsufficientPermission();
+        }
 
         TokenType tokenType = TokenType(id >> 248);
-        require(
-            tokenType == TokenType.EVENT_TICKET
-                || (tokenType != TokenType.ATTENDANCE_BADGE && tokenType != TokenType.ORGANIZER_CRED),
-            "soulbound"
-        );
+        if (tokenType == TokenType.ATTENDANCE_BADGE || tokenType == TokenType.ORGANIZER_CRED) {
+            revert SoulboundToken();
+        }
 
         if (msg.sender != from && !isOperator[from][msg.sender]) {
             allowance[from][msg.sender][id] -= amount;
@@ -651,16 +705,16 @@ contract Assemble {
     //////////////////////////////////////////////////////////////*/
 
     function _validatePaymentSplits(PaymentSplit[] calldata splits) internal pure {
-        require(splits.length > 0, "!splits");
-        require(splits.length <= MAX_PAYMENT_SPLITS, "too many");
+        if (splits.length == 0) revert NoSplits();
+        if (splits.length > MAX_PAYMENT_SPLITS) revert TooManySplits();
 
         uint256 totalBps = 0;
         for (uint256 i = 0; i < splits.length; i++) {
-            require(splits[i].recipient != address(0), "!recipient");
-            require(splits[i].basisPoints > 0, "!bps");
+            if (splits[i].recipient == address(0)) revert InvalidRecipient();
+            if (splits[i].basisPoints == 0) revert InvalidBasisPoints();
             totalBps += splits[i].basisPoints;
         }
-        require(totalBps == 10_000, "!100%");
+        if (totalBps != 10_000) revert InvalidTotalBasisPoints();
     }
 
     function generateTokenId(
@@ -730,14 +784,14 @@ contract Assemble {
     //////////////////////////////////////////////////////////////*/
 
     function setFeeTo(address newFeeTo) external onlyFeeTo {
-        require(newFeeTo != address(0), "!feeTo");
+        if (newFeeTo == address(0)) revert InvalidFeeRecipient();
         address oldFeeTo = feeTo;
         feeTo = newFeeTo;
         emit FeeToUpdated(oldFeeTo, newFeeTo);
     }
 
     function setProtocolFee(uint256 newFeeBps) external onlyFeeTo {
-        require(newFeeBps <= MAX_PROTOCOL_FEE, "too high");
+        if (newFeeBps > MAX_PROTOCOL_FEE) revert FeeToHigh();
         uint256 oldFee = protocolFeeBps;
         protocolFeeBps = newFeeBps;
         emit ProtocolFeeUpdated(oldFee, newFeeBps);
@@ -751,10 +805,10 @@ contract Assemble {
     /// @param eventId Event to cancel
     /// @dev Only organizer can cancel before event starts
     function cancelEvent(uint256 eventId) external onlyOrganizer(eventId) nonReentrant {
-        require(events[eventId].startTime > 0, "Event does not exist");
-        require(events[eventId].status == uint8(EventStatus.ACTIVE), "Event not active");
-        require(block.timestamp < events[eventId].startTime, "Event already started");
-        require(!eventCancelled[eventId], "Already cancelled");
+        if (events[eventId].startTime == 0) revert EventNotFound();
+        if (events[eventId].status != uint8(EventStatus.ACTIVE)) revert EventNotActive();
+        if (block.timestamp >= events[eventId].startTime) revert EventAlreadyStarted();
+        if (eventCancelled[eventId]) revert AlreadyCancelled();
 
         // Mark event as cancelled
         events[eventId].status = uint8(EventStatus.CANCELLED);
@@ -769,18 +823,18 @@ contract Assemble {
     /// @notice Claim refund for cancelled event tickets
     /// @param eventId Cancelled event ID
     function claimTicketRefund(uint256 eventId) external nonReentrant {
-        require(eventCancelled[eventId], "Event not cancelled");
-        require(block.timestamp <= eventCancellationTime[eventId] + REFUND_CLAIM_DEADLINE, "Refund deadline expired");
+        if (!eventCancelled[eventId]) revert EventNotCancelled();
+        if (block.timestamp > eventCancellationTime[eventId] + REFUND_CLAIM_DEADLINE) revert RefundDeadlineExpired();
 
         uint256 refundAmount = userTicketPayments[eventId][msg.sender];
-        require(refundAmount > 0, "No refund available");
+        if (refundAmount == 0) revert NoRefundAvailable();
 
         // Clear payment tracking to prevent re-claiming
         userTicketPayments[eventId][msg.sender] = 0;
 
         // Transfer refund
         (bool success,) = payable(msg.sender).call{ value: refundAmount }("");
-        require(success, "Refund transfer failed");
+        if (!success) revert TransferFailed();
 
         emit RefundClaimed(eventId, msg.sender, refundAmount, "ticket");
     }
@@ -788,18 +842,18 @@ contract Assemble {
     /// @notice Claim refund for cancelled event tips
     /// @param eventId Cancelled event ID
     function claimTipRefund(uint256 eventId) external nonReentrant {
-        require(eventCancelled[eventId], "Event not cancelled");
-        require(block.timestamp <= eventCancellationTime[eventId] + REFUND_CLAIM_DEADLINE, "Refund deadline expired");
+        if (!eventCancelled[eventId]) revert EventNotCancelled();
+        if (block.timestamp > eventCancellationTime[eventId] + REFUND_CLAIM_DEADLINE) revert RefundDeadlineExpired();
 
         uint256 refundAmount = userTipPayments[eventId][msg.sender];
-        require(refundAmount > 0, "No refund available");
+        if (refundAmount == 0) revert NoRefundAvailable();
 
         // Clear payment tracking to prevent re-claiming
         userTipPayments[eventId][msg.sender] = 0;
 
         // Transfer refund
         (bool success,) = payable(msg.sender).call{ value: refundAmount }("");
-        require(success, "Refund transfer failed");
+        if (!success) revert TransferFailed();
 
         emit RefundClaimed(eventId, msg.sender, refundAmount, "tip");
     }
@@ -810,9 +864,9 @@ contract Assemble {
 
     function checkIn(uint256 eventId) external {
         PackedEventData memory eventData = events[eventId];
-        require(eventData.startTime > 0, "!event");
-        require(block.timestamp >= eventData.startTime, "!started");
-        require(block.timestamp <= eventData.startTime + 86_400, "ended");
+        if (eventData.startTime == 0) revert EventNotFound();
+        if (block.timestamp < eventData.startTime) revert EventNotStarted();
+        if (block.timestamp > eventData.startTime + 86_400) revert EventEnded();
 
         uint256 badgeId = generateTokenId(TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
 
@@ -823,10 +877,10 @@ contract Assemble {
     }
 
     function claimOrganizerCredential(uint256 eventId) external {
-        require(eventOrganizers[eventId] == msg.sender, "!organizer");
+        if (eventOrganizers[eventId] != msg.sender) revert NotOrganizer();
 
         PackedEventData memory eventData = events[eventId];
-        require(block.timestamp > eventData.startTime + 86_400, "!completed");
+        if (block.timestamp <= eventData.startTime + 86_400) revert EventNotCompleted();
 
         uint256 credId = generateTokenId(TokenType.ORGANIZER_CRED, eventId, 0, 0);
 
