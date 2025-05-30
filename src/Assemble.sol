@@ -43,6 +43,7 @@ contract Assemble {
         EVENT_TICKET, // Transferrable event tickets
         ATTENDANCE_BADGE, // Soulbound attendance proof (ERC-5192)
         ORGANIZER_CRED // Soulbound organizer reputation
+
     }
 
     /// @notice Event visibility levels
@@ -187,7 +188,7 @@ contract Assemble {
     event UserBanned(address indexed user, address indexed bannedBy);
     event UserUnbanned(address indexed user, address indexed unbannedBy);
 
-    // Admin events  
+    // Admin events
     event FeeToUpdated(address indexed oldFeeTo, address indexed newFeeTo);
     event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
     event EventCancelled(uint256 indexed eventId, address indexed organizer, uint256 timestamp);
@@ -304,15 +305,7 @@ contract Assemble {
     /// @param eventId The event to purchase tickets for
     /// @param tierId The ticket tier to purchase
     /// @param quantity Number of tickets to purchase
-    function purchaseTickets(
-        uint256 eventId,
-        uint256 tierId,
-        uint256 quantity
-    )
-        external
-        payable
-        nonReentrant
-    {
+    function purchaseTickets(uint256 eventId, uint256 tierId, uint256 quantity) external payable nonReentrant {
         // CHECKS: Validate inputs and event state
         require(events[eventId].startTime > 0, "!event");
         require(quantity > 0 && quantity <= MAX_TICKET_QUANTITY, "!qty");
@@ -505,7 +498,7 @@ contract Assemble {
         }
 
         uint256 commentId = nextCommentId++;
-        
+
         comments[commentId] = CommentLibrary.Comment({
             author: msg.sender,
             timestamp: block.timestamp,
@@ -535,11 +528,11 @@ contract Assemble {
 
     function deleteComment(uint256 commentId, uint256 eventId) external {
         require(events[eventId].startTime > 0, "!event");
-        
+
         CommentLibrary.Comment storage comment = comments[commentId];
         require(comment.timestamp > 0, "Comment not found");
         require(comment.author == msg.sender || eventOrganizers[eventId] == msg.sender || msg.sender == feeTo, "!auth");
-        
+
         comment.isDeleted = true;
         emit CommentDeleted(commentId, msg.sender);
     }
@@ -561,7 +554,7 @@ contract Assemble {
         uint256[] memory eventCommentIds = eventComments[eventId];
         uint256[] memory tempReplies = new uint256[](eventCommentIds.length); // Max possible size
         uint256 replyCount = 0;
-        
+
         // Single loop to find replies
         for (uint256 i = 0; i < eventCommentIds.length; i++) {
             if (comments[eventCommentIds[i]].parentId == parentId) {
@@ -569,13 +562,13 @@ contract Assemble {
                 replyCount++;
             }
         }
-        
+
         // Create correctly sized array
         uint256[] memory replyIds = new uint256[](replyCount);
         for (uint256 i = 0; i < replyCount; i++) {
             replyIds[i] = tempReplies[i];
         }
-        
+
         return replyIds;
     }
 
@@ -717,7 +710,14 @@ contract Assemble {
         return eventCancelled[eventId];
     }
 
-    function getRefundAmounts(uint256 eventId, address user) external view returns (uint256 ticketRefund, uint256 tipRefund) {
+    function getRefundAmounts(
+        uint256 eventId,
+        address user
+    )
+        external
+        view
+        returns (uint256 ticketRefund, uint256 tipRefund)
+    {
         return (userTicketPayments[eventId][user], userTipPayments[eventId][user]);
     }
 
