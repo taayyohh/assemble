@@ -44,39 +44,11 @@ jobs:
         run: forge test -vvv
         id: test
 
-      - name: Install Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-
-      - name: Install Slither
-        run: |
-          pip3 install slither-analyzer
-          slither --version
-
-      - name: Run Slither Analysis
-        run: |
-          slither . --exclude-dependencies --exclude-informational --exclude-optimization --fail-on medium
-        continue-on-error: false
-
-      - name: Run Slither with JSON output
-        run: |
-          slither src/ --json slither-report.json --disable-color || true
-
-      - name: Upload Slither Report
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: slither-report
-          path: |
-            slither-report.md
-            slither-report.json
-
       - name: Run Gas Report
         run: forge test --gas-report > gas-report.txt
 
       - name: Upload Gas Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: gas-report
           path: gas-report.txt
@@ -92,23 +64,52 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
 
       - name: Install Python and Slither
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Slither
         run: |
           python -m pip install --upgrade pip
           pip install slither-analyzer
 
-      - name: Run Slither Security Checks
+      - name: Run Slither Analysis
         run: |
-          slither src/ \
-            --exclude-dependencies \
-            --exclude-optimization \
-            --exclude-informational \
-            --exclude-low \
-            --checklist \
-            --markdown-root ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.sha }}/
+          slither . --config-file slither.config.json --fail-medium
+        continue-on-error: false
 
-      - name: Run Slither Detailed Analysis
+      - name: Run Slither with JSON output
         run: |
-          echo "## 🔍 Slither Analysis Results" >> $GITHUB_STEP_SUMMARY
+          slither . --config-file slither.config.json --json slither-report.json --disable-color || true
+
+      - name: Upload Slither Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slither-report
+          path: slither-report.json
+
+      - name: Run Slither Human Summary
+        run: |
+          echo "## 🔍 Slither Security Analysis Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### High/Medium Severity Issues:" >> $GITHUB_STEP_SUMMARY
-          slither src/ --print human-summary >> $GITHUB_STEP_SUMMARY || true 
+          echo "### Analysis Summary:" >> $GITHUB_STEP_SUMMARY
+          slither . --config-file slither.config.json --print human-summary >> $GITHUB_STEP_SUMMARY 2>/dev/null || true
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Contract Summary:" >> $GITHUB_STEP_SUMMARY
+          slither . --config-file slither.config.json --print contract-summary >> $GITHUB_STEP_SUMMARY 2>/dev/null || true
+
+      - name: Check for High/Medium Issues
+        run: |
+          # Run slither and capture output
+          slither . --config-file slither.config.json > slither_output.txt 2>&1 || true
+          
+          # Check for high/medium severity issues
+          if grep -q "HIGH\|MEDIUM" slither_output.txt; then
+            echo "❌ High or Medium severity issues found!"
+            cat slither_output.txt
+            exit 1
+          else
+            echo "✅ No High or Medium severity issues detected"
+          fi 
