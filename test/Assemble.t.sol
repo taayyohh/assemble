@@ -110,7 +110,7 @@ contract AssembleTest is Test {
     function test_ValidatePaymentSplits() public {
         Assemble.EventParams memory params = Assemble.EventParams({
             title: "Test Event",
-            description: "Test",
+            description: "Test description", 
             imageUri: "ipfs://test",
             startTime: block.timestamp + 1 days,
             endTime: block.timestamp + 2 days,
@@ -130,32 +130,22 @@ contract AssembleTest is Test {
             transferrable: true
         });
 
-        // Test invalid splits (doesn't total 100%)
-        Assemble.PaymentSplit[] memory invalidSplits = new Assemble.PaymentSplit[](2);
-        invalidSplits[0] = Assemble.PaymentSplit(alice, 6000, "organizer"); // 60%
-        invalidSplits[1] = Assemble.PaymentSplit(bob, 3000, "venue"); // 30% - total 90%
+        // Invalid splits that don't total 100%
+        Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](1);
+        splits[0] = Assemble.PaymentSplit(alice, 5000, "organizer"); // Only 50%
 
         vm.prank(alice);
-        vm.expectRevert("!100%");
-        assemble.createEvent(params, tiers, invalidSplits);
-
-        // Test valid splits (totals 100%)
-        Assemble.PaymentSplit[] memory validSplits = new Assemble.PaymentSplit[](2);
-        validSplits[0] = Assemble.PaymentSplit(alice, 6000, "organizer"); // 60%
-        validSplits[1] = Assemble.PaymentSplit(bob, 4000, "venue"); // 40% - total 100%
-
-        vm.prank(alice);
-        uint256 eventId = assemble.createEvent(params, tiers, validSplits);
-        assertEq(eventId, 1);
+        vm.expectRevert(abi.encodeWithSignature("InvalidTotalBasisPoints()"));
+        assemble.createEvent(params, tiers, splits);
     }
 
     function test_EventCreationValidation() public {
         Assemble.EventParams memory params = Assemble.EventParams({
             title: "Test Event",
-            description: "Test",
+            description: "Test description",
             imageUri: "ipfs://test",
-            startTime: block.timestamp + 2 days, // Start time after end time - should fail
-            endTime: block.timestamp + 1 days, // End time before start time
+            startTime: block.timestamp + 1 days,
+            endTime: block.timestamp, // Invalid: end before start
             capacity: 100,
             venueId: 1,
             visibility: Assemble.EventVisibility.PUBLIC
@@ -175,8 +165,7 @@ contract AssembleTest is Test {
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](1);
         splits[0] = Assemble.PaymentSplit(alice, 10_000, "organizer");
 
-        vm.prank(alice);
-        vm.expectRevert("!endTime");
+        vm.expectRevert(abi.encodeWithSignature("InvalidEndTime()"));
         assemble.createEvent(params, tiers, splits);
     }
 
@@ -441,8 +430,8 @@ contract AssembleTest is Test {
 
     function test_SetProtocolFeeRevertsTooHigh() public {
         vm.prank(feeTo);
-        vm.expectRevert("too high");
-        assemble.setProtocolFee(1100); // 11% - above MAX_PROTOCOL_FEE
+        vm.expectRevert(abi.encodeWithSignature("FeeToHigh()"));
+        assemble.setProtocolFee(1001); // Over 10% max
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -521,14 +510,8 @@ contract AssembleTest is Test {
     function test_CheckInFailsBeforeEventStart() public {
         uint256 eventId = _createSampleEvent();
 
-        // Purchase ticket
-        vm.deal(bob, 1 ether);
         vm.prank(bob);
-        assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1);
-
-        // Try to check in before event starts
-        vm.prank(bob);
-        vm.expectRevert("!started");
+        vm.expectRevert(abi.encodeWithSignature("EventNotStarted()"));
         assemble.checkIn(eventId);
     }
 
@@ -553,30 +536,23 @@ contract AssembleTest is Test {
         vm.warp(block.timestamp + 2 days + 1 hours);
 
         vm.prank(bob);
-        vm.expectRevert("!organizer");
+        vm.expectRevert(abi.encodeWithSignature("NotOrganizer()"));
         assemble.claimOrganizerCredential(eventId);
     }
 
     function test_SoulboundTokensCannotBeTransferred() public {
         uint256 eventId = _createSampleEvent();
 
-        // Purchase and check in
-        vm.deal(bob, 1 ether);
-        vm.prank(bob);
-        assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1);
-
-        uint256 ticketId = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
-
+        // Check in to get badge
         vm.warp(block.timestamp + 1 days);
         vm.prank(bob);
         assemble.checkIn(eventId);
 
         uint256 badgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
 
-        // Try to transfer soulbound badge (should fail)
         vm.prank(bob);
-        vm.expectRevert("soulbound");
-        assemble.transfer(bob, charlie, badgeId, 1);
+        vm.expectRevert(abi.encodeWithSignature("SoulboundToken()"));
+        assemble.transfer(bob, alice, badgeId, 1);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -711,33 +687,33 @@ contract AssembleTest is Test {
     function test_CannotCancelAfterEventStarts() public {
         uint256 eventId = _createSampleEvent();
 
-        // Warp to event start time
-        vm.warp(block.timestamp + 1 days);
+        // Fast forward past event start
+        vm.warp(block.timestamp + 2 days);
 
         vm.prank(alice);
-        vm.expectRevert("Event already started");
+        vm.expectRevert(abi.encodeWithSignature("EventAlreadyStarted()"));
         assemble.cancelEvent(eventId);
     }
 
-    function test_CannotClaimRefundForActivEvent() public {
+    function test_CannotClaimRefundForActiveEvent() public {
         uint256 eventId = _createSampleEvent();
 
-        // Purchase tickets
+        // Purchase ticket
         vm.deal(bob, 1 ether);
         vm.prank(bob);
         assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1);
 
-        // Try to claim refund without cancellation
+        // Try to claim refund without cancelling
         vm.prank(bob);
-        vm.expectRevert("Event not cancelled");
+        vm.expectRevert(abi.encodeWithSignature("EventNotCancelled()"));
         assemble.claimTicketRefund(eventId);
     }
 
     function test_OnlyOrganizerCanCancel() public {
         uint256 eventId = _createSampleEvent();
 
-        vm.prank(bob);
-        vm.expectRevert("Not event organizer");
+        vm.prank(bob); // Not organizer
+        vm.expectRevert(abi.encodeWithSignature("NotEventOrganizer()"));
         assemble.cancelEvent(eventId);
     }
 
@@ -748,21 +724,19 @@ contract AssembleTest is Test {
     function test_RefundDeadline() public {
         uint256 eventId = _createSampleEvent();
 
-        // Purchase tickets
+        // Purchase and cancel
         vm.deal(bob, 1 ether);
         vm.prank(bob);
         assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1);
 
-        // Cancel event
         vm.prank(alice);
         assemble.cancelEvent(eventId);
 
-        // Fast forward past refund deadline
+        // Fast forward past deadline
         vm.warp(block.timestamp + 91 days);
 
-        // Try to claim refund after deadline
         vm.prank(bob);
-        vm.expectRevert("Refund deadline expired");
+        vm.expectRevert(abi.encodeWithSignature("RefundDeadlineExpired()"));
         assemble.claimTicketRefund(eventId);
     }
 

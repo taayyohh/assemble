@@ -65,6 +65,9 @@ contract Assemble {
     error NotBanned();
     error InsufficientPermission();
     error SoulboundToken();
+    error TicketNotOwned();
+    error InvalidTicketForEvent();
+    error TicketAlreadyUsed();
 
     /*//////////////////////////////////////////////////////////////
                             CONSTANTS
@@ -221,6 +224,9 @@ contract Assemble {
     mapping(uint256 => mapping(address => uint256)) private userTipPayments;
     mapping(uint256 => uint256) private eventCancellationTime;
 
+    // Attendance tracking
+    mapping(uint256 => bool) public usedTickets;
+
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -234,7 +240,7 @@ contract Assemble {
     event PaymentAllocated(uint256 indexed eventId, address indexed recipient, uint256 amount, string role);
     event FundsClaimed(address indexed recipient, uint256 amount);
     event EventTipped(uint256 indexed eventId, address indexed tipper, uint256 amount);
-    event AttendanceVerified(uint256 indexed eventId, address indexed attendee);
+    event AttendanceVerified(uint256 indexed eventId, address indexed user);
 
     // Comment system events
     event CommentPosted(uint256 indexed eventId, uint256 indexed commentId, address indexed author, uint256 parentId);
@@ -254,6 +260,9 @@ contract Assemble {
     event Transfer(address indexed caller, address indexed from, address indexed to, uint256 id, uint256 amount);
     event Approval(address indexed owner, address indexed spender, uint256 indexed id, uint256 amount);
     event OperatorSet(address indexed owner, address indexed operator, bool approved);
+
+    // New events
+    event TicketUsed(uint256 indexed eventId, address indexed user, uint256 indexed ticketTokenId, uint256 tierId);
 
     /*//////////////////////////////////////////////////////////////
                                 MODIFIERS
@@ -862,6 +871,9 @@ contract Assemble {
                         ATTENDANCE & BADGES SYSTEM
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Basic event check-in (user-level)
+    /// @param eventId Event to check into
+    /// @dev Mints a single attendance badge per user per event
     function checkIn(uint256 eventId) external {
         PackedEventData memory eventData = events[eventId];
         if (eventData.startTime == 0) revert EventNotFound();
@@ -876,6 +888,59 @@ contract Assemble {
         }
     }
 
+    /// @notice Check-in with specific ticket verification
+    /// @param eventId Event to check into  
+    /// @param ticketTokenId Specific ticket token ID to verify and mark as used
+    /// @dev Verifies ticket ownership and mints tier-specific attendance badge
+    function checkInWithTicket(uint256 eventId, uint256 ticketTokenId) external {
+        PackedEventData memory eventData = events[eventId];
+        if (eventData.startTime == 0) revert EventNotFound();
+        if (block.timestamp < eventData.startTime) revert EventNotStarted();
+        if (block.timestamp > eventData.startTime + 86_400) revert EventEnded();
+
+        // Verify user owns the ticket
+        if (balanceOf[msg.sender][ticketTokenId] == 0) revert TicketNotOwned();
+        
+        // Verify ticket is for this event
+        if (!isValidTicketForEvent(ticketTokenId, eventId)) revert InvalidTicketForEvent();
+        
+        // Extract tier information from token ID
+        uint256 tierId = (ticketTokenId >> 152) & 0xFFFFFFFF;
+        
+        // Check if this specific ticket was already used
+        if (usedTickets[ticketTokenId]) revert TicketAlreadyUsed();
+        
+        // Mark ticket as used
+        usedTickets[ticketTokenId] = true;
+        
+        // Mint tier-specific attendance badge
+        uint256 badgeId = generateTokenId(TokenType.ATTENDANCE_BADGE, eventId, tierId, 0);
+        
+        if (balanceOf[msg.sender][badgeId] == 0) {
+            _mint(msg.sender, badgeId, 1);
+        }
+        
+        emit TicketUsed(eventId, msg.sender, ticketTokenId, tierId);
+        emit AttendanceVerified(eventId, msg.sender);
+    }
+
+    /// @notice Check if a specific ticket has been used
+    /// @param ticketTokenId Ticket token ID to check
+    /// @return used True if ticket has been used for check-in
+    function isTicketUsed(uint256 ticketTokenId) external view returns (bool used) {
+        return usedTickets[ticketTokenId];
+    }
+
+    /// @notice Get attendance badge for specific tier
+    /// @param user User address
+    /// @param eventId Event ID 
+    /// @param tierId Tier ID (0 for basic attendance)
+    /// @return attended True if user has tier-specific attendance badge
+    function hasAttendedTier(address user, uint256 eventId, uint256 tierId) external view returns (bool attended) {
+        uint256 badgeId = generateTokenId(TokenType.ATTENDANCE_BADGE, eventId, tierId, 0);
+        return balanceOf[user][badgeId] > 0;
+    }
+
     function claimOrganizerCredential(uint256 eventId) external {
         if (eventOrganizers[eventId] != msg.sender) revert NotOrganizer();
 
@@ -887,5 +952,42 @@ contract Assemble {
         if (balanceOf[msg.sender][credId] == 0) {
             _mint(msg.sender, credId, 1);
         }
+    }
+
+    /// @notice Check-in someone else using a ticket you own
+    /// @param eventId Event to check into  
+    /// @param ticketTokenId Specific ticket token ID to verify and mark as used
+    /// @param attendee Address of the person checking in (who will receive the badge)
+    /// @dev Allows ticket purchaser to check in friends/family using tickets they bought
+    function checkInDelegate(uint256 eventId, uint256 ticketTokenId, address attendee) external {
+        PackedEventData memory eventData = events[eventId];
+        if (eventData.startTime == 0) revert EventNotFound();
+        if (block.timestamp < eventData.startTime) revert EventNotStarted();
+        if (block.timestamp > eventData.startTime + 86_400) revert EventEnded();
+
+        // Verify caller owns the ticket (ticket purchaser can check in others)
+        if (balanceOf[msg.sender][ticketTokenId] == 0) revert TicketNotOwned();
+        
+        // Verify ticket is for this event
+        if (!isValidTicketForEvent(ticketTokenId, eventId)) revert InvalidTicketForEvent();
+        
+        // Extract tier information from token ID
+        uint256 tierId = (ticketTokenId >> 152) & 0xFFFFFFFF;
+        
+        // Check if this specific ticket was already used
+        if (usedTickets[ticketTokenId]) revert TicketAlreadyUsed();
+        
+        // Mark ticket as used
+        usedTickets[ticketTokenId] = true;
+        
+        // Mint tier-specific attendance badge for the attendee (not ticket owner)
+        uint256 badgeId = generateTokenId(TokenType.ATTENDANCE_BADGE, eventId, tierId, 0);
+        
+        if (balanceOf[attendee][badgeId] == 0) {
+            _mint(attendee, badgeId, 1);
+        }
+        
+        emit TicketUsed(eventId, attendee, ticketTokenId, tierId);
+        emit AttendanceVerified(eventId, attendee);
     }
 }

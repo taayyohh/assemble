@@ -18,7 +18,6 @@ library CommentLibrary {
     /// @param comments Storage mapping of comments
     /// @param eventComments Storage mapping of event comments
     /// @param bannedUsers Storage mapping of banned users
-    /// @param eventOrganizers Storage mapping of event organizers
     /// @param nextCommentId Next comment ID counter
     /// @param eventId Event to comment on
     /// @param content Comment text content
@@ -29,7 +28,6 @@ library CommentLibrary {
         mapping(uint256 => Comment) storage comments,
         mapping(uint256 => uint256[]) storage eventComments,
         mapping(address => bool) storage bannedUsers,
-        mapping(uint256 => address) storage eventOrganizers,
         uint256 nextCommentId,
         uint256 eventId,
         string calldata content,

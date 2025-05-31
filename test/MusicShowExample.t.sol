@@ -148,19 +148,35 @@ contract MusicShowExampleTest is Test {
         // Concert night attendance
         vm.warp(block.timestamp + 14 days);
 
-        uint256 ticket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
+        // Generate specific ticket IDs for check-in
+        uint256 gaTicket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
+        uint256 gaTicket2 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 2);
         uint256 vipTicket = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 2, 1);
+        uint256 platinumTicket = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 3, 1);
 
+        // Different check-in scenarios
         vm.prank(fan1);
-        assemble.checkIn(eventId);
+        assemble.checkInWithTicket(eventId, gaTicket1); // GA ticket holder
 
         vm.prank(fan2);
-        assemble.checkIn(eventId);
+        assemble.checkInWithTicket(eventId, vipTicket); // VIP access
 
-        assertTrue(assemble.hasAttended(fan1, eventId));
-        assertTrue(assemble.hasAttended(fan2, eventId));
+        vm.prank(fan3);
+        assemble.checkInWithTicket(eventId, platinumTicket); // Platinum backstage
 
-        console.log("Fans attended concert and received attendance badges!");
+        // Verify tier-specific access
+        assertTrue(assemble.hasAttendedTier(fan1, eventId, 0), "GA ticket holder should have GA badge");
+        assertTrue(assemble.hasAttendedTier(fan2, eventId, 2), "VIP ticket holder should have VIP badge");
+        assertTrue(assemble.hasAttendedTier(fan3, eventId, 3), "Platinum holder should have Platinum badge");
+        
+        // Verify access restrictions - GA holder shouldn't get VIP badge
+        assertFalse(assemble.hasAttendedTier(fan1, eventId, 2), "GA holder shouldn't have VIP access");
+        assertFalse(assemble.hasAttendedTier(fan1, eventId, 3), "GA holder shouldn't have Platinum access");
+
+        console.log("Concert attendance with access verification:");
+        console.log("  GA fan: General admission access");
+        console.log("  VIP fan: Meet & greet access verified");
+        console.log("  Platinum fan: Backstage access verified");
         console.log("What an incredible show!");
     }
 

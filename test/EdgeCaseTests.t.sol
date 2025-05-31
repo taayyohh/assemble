@@ -224,7 +224,7 @@ contract EdgeCaseTests is Test {
         // Should fail to purchase after sale ends
         vm.deal(charlie, price);
         vm.prank(charlie);
-        vm.expectRevert(bytes("ended"));
+        vm.expectRevert(abi.encodeWithSignature("SaleEnded()"));
         assemble.purchaseTickets{ value: price }(eventId, 0, 1);
     }
 
@@ -264,7 +264,7 @@ contract EdgeCaseTests is Test {
         vm.warp(block.timestamp + 90 days + 1 seconds);
 
         vm.prank(charlie);
-        vm.expectRevert(bytes("Refund deadline expired"));
+        vm.expectRevert(abi.encodeWithSignature("RefundDeadlineExpired()"));
         assemble.claimTicketRefund(eventId2);
     }
 
@@ -283,7 +283,7 @@ contract EdgeCaseTests is Test {
 
         // Large quantities should be caught by quantity check before overflow
         // MAX_TICKET_QUANTITY is 50, so 51 should fail
-        vm.expectRevert(bytes("!qty"));
+        vm.expectRevert(abi.encodeWithSignature("InvalidQuantity()"));
         assemble.purchaseTickets{ value: 0 }(eventId, 0, 51); // Test the actual purchase, not just calculation
     }
 
@@ -315,17 +315,17 @@ contract EdgeCaseTests is Test {
         uint256 eventId = _createEvent(0.1 ether, 100);
 
         vm.prank(attacker);
-        vm.expectRevert(bytes("Not event organizer"));
+        vm.expectRevert(abi.encodeWithSignature("NotEventOrganizer()"));
         assemble.cancelEvent(eventId);
     }
 
     function test_NonFeeToCannotUpdateProtocolSettings() public {
         vm.prank(attacker);
-        vm.expectRevert(bytes("Not authorized"));
+        vm.expectRevert(abi.encodeWithSignature("NotAuthorized()"));
         assemble.setProtocolFee(100);
 
         vm.prank(attacker);
-        vm.expectRevert(bytes("Not authorized"));
+        vm.expectRevert(abi.encodeWithSignature("NotAuthorized()"));
         assemble.setFeeTo(attacker);
     }
 
@@ -374,13 +374,13 @@ contract EdgeCaseTests is Test {
 
     function test_CannotAddSelfAsFriend() public {
         vm.prank(alice);
-        vm.expectRevert(bytes("Cannot add yourself"));
+        vm.expectRevert(abi.encodeWithSignature("CannotAddYourself()"));
         assemble.addFriend(alice);
     }
 
     function test_CannotAddZeroAddressAsFriend() public {
         vm.prank(alice);
-        vm.expectRevert(bytes("Invalid address"));
+        vm.expectRevert(abi.encodeWithSignature("InvalidAddress()"));
         assemble.addFriend(address(0));
     }
 
@@ -416,9 +416,9 @@ contract EdgeCaseTests is Test {
         uint256 badgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
 
         // Try to transfer soulbound token
-        vm.prank(alice);
-        vm.expectRevert(bytes("soulbound"));
-        assemble.transfer(alice, bob, badgeId, 1);
+        vm.prank(bob);
+        vm.expectRevert(abi.encodeWithSignature("SoulboundToken()"));
+        assemble.transfer(bob, alice, badgeId, 1);
 
         // Same for organizer credential
         vm.warp(block.timestamp + 1 days + 1 hours);
@@ -428,7 +428,7 @@ contract EdgeCaseTests is Test {
         uint256 credId = assemble.generateTokenId(Assemble.TokenType.ORGANIZER_CRED, eventId, 0, 0);
 
         vm.prank(alice);
-        vm.expectRevert(bytes("soulbound"));
+        vm.expectRevert(abi.encodeWithSignature("SoulboundToken()"));
         assemble.transfer(alice, bob, credId, 1);
     }
 
@@ -457,7 +457,7 @@ contract EdgeCaseTests is Test {
         string memory tooLong = string(new bytes(1001));
 
         vm.prank(alice);
-        vm.expectRevert(bytes("Invalid length"));
+        vm.expectRevert(abi.encodeWithSignature("InvalidContentLength()"));
         assemble.postComment(eventId, tooLong, 0);
     }
 
@@ -465,7 +465,7 @@ contract EdgeCaseTests is Test {
         uint256 eventId = _createEvent(0.1 ether, 100);
 
         vm.prank(alice);
-        vm.expectRevert(bytes("Invalid length"));
+        vm.expectRevert(abi.encodeWithSignature("InvalidContentLength()"));
         assemble.postComment(eventId, "", 0);
     }
 
@@ -501,5 +501,135 @@ contract EdgeCaseTests is Test {
 
         vm.prank(alice);
         return assemble.createEvent(params, tiers, splits);
+    }
+
+    function test_TicketSpecificCheckInEdgeCases() public {
+        uint256 eventId1 = _createEvent(0.1 ether, 100);
+        uint256 eventId2 = _createEvent(0.2 ether, 50);
+
+        // Purchase tickets for both events
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        assemble.purchaseTickets{ value: 0.1 ether }(eventId1, 0, 1);
+
+        vm.prank(alice);
+        assemble.purchaseTickets{ value: 0.2 ether }(eventId2, 0, 1);
+
+        uint256 ticket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId1, 0, 1);
+        uint256 ticket2 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId2, 0, 1);
+
+        // Fast forward to event 1 start
+        vm.warp(block.timestamp + 1 days);
+
+        // Successfully check in with correct ticket
+        vm.prank(alice);
+        assemble.checkInWithTicket(eventId1, ticket1);
+
+        assertTrue(assemble.hasAttendedTier(alice, eventId1, 0), "Should have tier 0 badge for event 1");
+        assertTrue(assemble.isTicketUsed(ticket1), "Ticket should be marked as used");
+
+        // Try to reuse the same ticket - should fail
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSignature("TicketAlreadyUsed()"));
+        assemble.checkInWithTicket(eventId1, ticket1);
+
+        // Try to use wrong event ticket - should fail
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSignature("InvalidTicketForEvent()"));
+        assemble.checkInWithTicket(eventId1, ticket2);
+
+        // Try to check in without owning ticket
+        vm.prank(bob);
+        vm.expectRevert(abi.encodeWithSignature("TicketNotOwned()"));
+        assemble.checkInWithTicket(eventId1, ticket1);
+
+        console.log("Ticket-specific check-in edge cases verified:");
+        console.log("  > Prevents ticket reuse");
+        console.log("  > Prevents wrong event tickets");
+        console.log("  > Requires ticket ownership");
+    }
+
+    function test_MixedCheckInMethods() public {
+        uint256 eventId = _createEvent(0.1 ether, 100);
+
+        // Purchase ticket
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1);
+
+        uint256 ticket = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
+
+        vm.warp(block.timestamp + 1 days);
+
+        // Use basic check-in first
+        vm.prank(alice);
+        assemble.checkIn(eventId);
+
+        // Then try ticket-specific check-in
+        vm.prank(alice);
+        assemble.checkInWithTicket(eventId, ticket);
+
+        // Should have both basic and tier-specific badges
+        assertTrue(assemble.hasAttended(alice, eventId), "Should have basic attendance");
+        assertTrue(assemble.hasAttendedTier(alice, eventId, 0), "Should have tier-specific attendance");
+        assertTrue(assemble.isTicketUsed(ticket), "Ticket should be marked as used");
+
+        console.log("Mixed check-in methods work correctly:");
+        console.log("  > Basic + ticket-specific check-in both work");
+        console.log("  > User gets appropriate badges for each method");
+    }
+
+    function test_GroupTicketCheckIn() public {
+        uint256 eventId = _createEvent(0.1 ether, 100);
+
+        // Alice buys 4 tickets for herself and 3 friends
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        assemble.purchaseTickets{ value: 0.4 ether }(eventId, 0, 4);
+
+        // Generate the ticket IDs Alice received
+        uint256 ticket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
+        uint256 ticket2 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 2);
+        uint256 ticket3 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 3);
+        uint256 ticket4 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 4);
+
+        // Verify Alice owns all tickets
+        assertEq(assemble.balanceOf(alice, ticket1), 1);
+        assertEq(assemble.balanceOf(alice, ticket2), 1);
+        assertEq(assemble.balanceOf(alice, ticket3), 1);
+        assertEq(assemble.balanceOf(alice, ticket4), 1);
+
+        vm.warp(block.timestamp + 1 days);
+
+        // Alice checks herself in with ticket 1
+        vm.prank(alice);
+        assemble.checkInWithTicket(eventId, ticket1);
+
+        // Alice checks in her friends using the other tickets
+        vm.prank(alice);
+        assemble.checkInDelegate(eventId, ticket2, bob);
+
+        vm.prank(alice);
+        assemble.checkInDelegate(eventId, ticket3, charlie);
+
+        vm.prank(alice);
+        assemble.checkInDelegate(eventId, ticket4, attacker); // Using attacker as 4th friend
+
+        // Verify everyone has attendance badges
+        assertTrue(assemble.hasAttendedTier(alice, eventId, 0), "Alice should have attendance badge");
+        assertTrue(assemble.hasAttendedTier(bob, eventId, 0), "Bob should have attendance badge");
+        assertTrue(assemble.hasAttendedTier(charlie, eventId, 0), "Charlie should have attendance badge");
+        assertTrue(assemble.hasAttendedTier(attacker, eventId, 0), "Friend 4 should have attendance badge");
+
+        // Verify all tickets are marked as used
+        assertTrue(assemble.isTicketUsed(ticket1), "Ticket 1 should be used");
+        assertTrue(assemble.isTicketUsed(ticket2), "Ticket 2 should be used");
+        assertTrue(assemble.isTicketUsed(ticket3), "Ticket 3 should be used");
+        assertTrue(assemble.isTicketUsed(ticket4), "Ticket 4 should be used");
+
+        console.log("Group ticket check-in successful:");
+        console.log("  Alice bought 4 tickets and checked in herself + 3 friends");
+        console.log("  All attendees received individual attendance badges");
+        console.log("  All tickets properly marked as used");
     }
 }

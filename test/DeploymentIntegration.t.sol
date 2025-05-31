@@ -210,7 +210,7 @@ contract DeploymentIntegrationTest is Test {
         uint256 badgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
 
         vm.prank(attendee1);
-        vm.expectRevert("soulbound");
+        vm.expectRevert(abi.encodeWithSignature("SoulboundToken()"));
         assemble.transfer(attendee1, attendee2, badgeId, 1);
 
         console.log("Soulbound tokens properly restricted");
@@ -224,7 +224,7 @@ contract DeploymentIntegrationTest is Test {
 
         // Only fee recipient can update protocol settings
         vm.prank(organizer);
-        vm.expectRevert("Not authorized");
+        vm.expectRevert(abi.encodeWithSignature("NotAuthorized()"));
         assemble.setProtocolFee(100);
 
         // Deployer can update

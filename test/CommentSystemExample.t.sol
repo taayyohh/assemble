@@ -161,7 +161,7 @@ contract CommentSystemExampleTest is Test {
 
         // Spammer tries to comment again but fails
         vm.prank(spammer);
-        vm.expectRevert("Banned");
+        vm.expectRevert(abi.encodeWithSignature("Banned()"));
         assemble.postComment(eventId, "This should fail", 0);
 
         console.log("Spammer banned and prevented from commenting");
@@ -182,19 +182,19 @@ contract CommentSystemExampleTest is Test {
 
         // Test empty comment rejection
         vm.prank(alice);
-        vm.expectRevert("Invalid length");
+        vm.expectRevert(abi.encodeWithSignature("InvalidContentLength()"));
         assemble.postComment(eventId, "", 0);
 
         // Test comment too long rejection
         string memory longComment = _generateLongString(1001); // Over 1000 char limit
         vm.prank(alice);
-        vm.expectRevert("Invalid length");
+        vm.expectRevert(abi.encodeWithSignature("InvalidContentLength()"));
         assemble.postComment(eventId, longComment, 0);
 
-        // Test reply to non-existent comment
+        // Test replying to non-existent comment
         vm.prank(alice);
-        vm.expectRevert("Parent not found");
-        assemble.postComment(eventId, "Reply to non-existent comment", 999);
+        vm.expectRevert(abi.encodeWithSignature("ParentNotFound()"));
+        assemble.postComment(eventId, "Reply to nothing", 999);
 
         console.log("All comment validations working correctly");
     }

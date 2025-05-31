@@ -128,12 +128,32 @@ contract TheatreExampleTest is Test {
         // Show night attendance
         vm.warp(block.timestamp + 7 days);
 
-        uint256 ticket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
+        // Test both check-in methods
+        uint256 gaTicket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 1, 1);
+        uint256 gaTicket2 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 1, 2);
+        uint256 premiumTicket = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 2, 1);
+
+        // Basic check-in (no ticket verification)
         vm.prank(theatergoer1);
         assemble.checkIn(eventId);
 
-        assertTrue(assemble.hasAttended(theatergoer1, eventId));
-        console.log("Theatre patron attended and received show badge!");
+        // Ticket-specific check-in for premium seat holder
+        vm.prank(theatergoer2);
+        assemble.checkInWithTicket(eventId, premiumTicket);
+
+        // Verify different types of attendance
+        assertTrue(assemble.hasAttended(theatergoer1, eventId), "Basic check-in should work");
+        assertTrue(assemble.hasAttendedTier(theatergoer2, eventId, 2), "Premium ticket holder should have tier-specific badge");
+        assertFalse(assemble.hasAttendedTier(theatergoer1, eventId, 2), "Basic check-in shouldn't get premium badge");
+        
+        // Verify ticket usage tracking
+        assertTrue(assemble.isTicketUsed(premiumTicket), "Premium ticket should be marked as used");
+        assertFalse(assemble.isTicketUsed(gaTicket1), "Unused ticket should not be marked as used");
+
+        console.log("Theatre attendance verified:");
+        console.log("  Basic attendance: theatergoer1");
+        console.log("  Premium tier attendance: theatergoer2");
+        console.log("  Ticket usage properly tracked");
         console.log("Break a leg! The show was fantastic!");
     }
 
