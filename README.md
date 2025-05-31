@@ -133,11 +133,11 @@ assemble.inviteToEvent(eventId, guests);
 
 | Operation | Gas |
 |-----------|-----|
-| Create Event | ~319k |
-| Purchase Tickets | ~158k |
-| Private Invitations | ~90k |
-| Check-in Operations | ~200-250k |
-| Social Operations | ~30-140k |
+| Create Event | 538,611 |
+| Purchase Tickets | 221,345 |
+| Private Invitations | 78,968 |
+| Check-in Operations | 74,163 |
+| Social Operations | 33,080 - 91,663 |
 
 ## Testing Coverage
 
