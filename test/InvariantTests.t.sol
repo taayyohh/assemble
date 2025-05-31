@@ -275,12 +275,13 @@ contract AssembleHandler is Test {
         uint256 price = assemble.calculatePrice(eventId, 0, quantity);
 
         if (price > 0 && msg.sender.balance >= price) {
+            // Get sold count BEFORE purchase
+            (,,, uint256 soldBefore,,,) = assemble.ticketTiers(eventId, 0);
+            
             try assemble.purchaseTickets{ value: price }(eventId, 0, quantity) {
                 // Track multiple token IDs (one for each ticket purchased)
-                (,,, uint256 soldBefore,,,) = assemble.ticketTiers(eventId, 0);
-
                 for (uint256 i = 0; i < quantity; i++) {
-                    uint256 serialNumber = soldBefore - quantity + i + 1;
+                    uint256 serialNumber = soldBefore + i + 1;
                     uint256 tokenId =
                         assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, serialNumber);
 
