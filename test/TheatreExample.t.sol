@@ -143,12 +143,15 @@ contract TheatreExampleTest is Test {
 
         // Verify different types of attendance
         assertTrue(assemble.hasAttended(theatergoer1, eventId), "Basic check-in should work");
-        assertTrue(assemble.hasAttendedTier(theatergoer2, eventId, 2), "Premium ticket holder should have tier-specific badge");
-        assertFalse(assemble.hasAttendedTier(theatergoer1, eventId, 2), "Basic check-in shouldn't get premium badge");
         
         // Verify ticket usage tracking
         assertTrue(assemble.isTicketUsed(premiumTicket), "Premium ticket should be marked as used");
         assertFalse(assemble.isTicketUsed(gaTicket1), "Unused ticket should not be marked as used");
+
+        // Verify tier-specific badges 
+        uint256 premiumBadgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 2, 0);
+        assertTrue(assemble.balanceOf(theatergoer2, premiumBadgeId) > 0, "Premium ticket holder should have tier-specific badge");
+        assertFalse(assemble.balanceOf(theatergoer1, premiumBadgeId) > 0, "Basic check-in shouldn't get premium badge");
 
         console.log("Theatre attendance verified:");
         console.log("  Basic attendance: theatergoer1");

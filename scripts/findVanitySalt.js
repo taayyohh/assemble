@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Production configuration
-const TARGET_PREFIX = '7777777'; // Address should start with 0x7777777
+const TARGET_PREFIX = '0000000'; // Address should start with 0x0000000
 const DEPLOYER_ADDRESS = '0xc1951eF408265A3b90d07B0BE030e63CCc7da6c6'; // Your production address
 const FEE_TO_ADDRESS = '0xc1951eF408265A3b90d07B0BE030e63CCc7da6c6'; // Constructor argument
 

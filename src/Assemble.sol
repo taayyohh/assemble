@@ -69,6 +69,11 @@ contract Assemble {
     error InvalidTicketForEvent();
     error TicketAlreadyUsed();
 
+    /// @notice Invite system errors
+    error NotInvited();
+    error AlreadyInvited();
+    error EventNotPrivate();
+
     /*//////////////////////////////////////////////////////////////
                             CONSTANTS
     //////////////////////////////////////////////////////////////*/
@@ -227,6 +232,9 @@ contract Assemble {
     // Attendance tracking
     mapping(uint256 => bool) public usedTickets;
 
+    // Invite system for private events
+    mapping(uint256 => mapping(address => bool)) public eventInvites;
+
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -263,6 +271,10 @@ contract Assemble {
 
     // New events
     event TicketUsed(uint256 indexed eventId, address indexed user, uint256 indexed ticketTokenId, uint256 tierId);
+
+    // Invite system events
+    event UserInvited(uint256 indexed eventId, address indexed invitee, address indexed organizer);
+    event InvitationRevoked(uint256 indexed eventId, address indexed invitee, address indexed organizer);
 
     /*//////////////////////////////////////////////////////////////
                                 MODIFIERS
@@ -348,15 +360,19 @@ contract Assemble {
         eventOrganizers[eventId] = msg.sender;
 
         // Store ticket tiers
-        for (uint256 i = 0; i < tiers.length; i++) {
+        uint256 tiersLength = tiers.length;
+        for (uint256 i = 0; i < tiersLength;) {
             if (tiers[i].maxSupply == 0) revert TierMustHaveSupply();
             if (tiers[i].startSaleTime > tiers[i].endSaleTime) revert InvalidSaleTimes();
             ticketTiers[eventId][i] = tiers[i];
+            unchecked { ++i; }
         }
 
         // Store payment splits
-        for (uint256 i = 0; i < splits.length; i++) {
+        uint256 splitsLength = splits.length;
+        for (uint256 i = 0; i < splitsLength;) {
             eventPaymentSplits[eventId].push(splits[i]);
+            unchecked { ++i; }
         }
 
         emit EventCreated(eventId, msg.sender, params.startTime);
@@ -381,6 +397,11 @@ contract Assemble {
         if (block.timestamp > tier.endSaleTime) revert SaleEnded();
         if (tier.sold + quantity > tier.maxSupply) revert InsufficientCapacity();
 
+        // Check event visibility and access permissions
+        if (EventVisibility(events[eventId].visibility) == EventVisibility.INVITE_ONLY && !eventInvites[eventId][msg.sender]) {
+            revert NotInvited();
+        }
+
         // Calculate total cost with dynamic pricing
         uint256 totalCost = calculatePrice(eventId, tierId, quantity);
         if (msg.value < totalCost) revert InsufficientPayment();
@@ -392,9 +413,10 @@ contract Assemble {
         userTicketPayments[eventId][msg.sender] += totalCost;
 
         // Mint ERC-6909 tickets - use unique IDs to avoid collisions
-        for (uint256 i = 0; i < quantity; i++) {
+        for (uint256 i = 0; i < quantity;) {
             uint256 tokenId = generateTokenId(TokenType.EVENT_TICKET, eventId, tierId, tier.sold - quantity + i + 1);
             _mint(msg.sender, tokenId, 1);
+            unchecked { ++i; }
         }
 
         // Calculate and distribute payments
@@ -548,6 +570,47 @@ contract Assemble {
     }
 
     /*//////////////////////////////////////////////////////////////
+                        INVITE SYSTEM (PRIVATE EVENTS)
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Invite users to a private event
+    /// @param eventId Event identifier
+    /// @param invitees Array of addresses to invite
+    function inviteToEvent(uint256 eventId, address[] calldata invitees) external onlyOrganizer(eventId) {
+        if (events[eventId].startTime == 0) revert EventNotFound();
+        if (EventVisibility(events[eventId].visibility) != EventVisibility.INVITE_ONLY) revert EventNotPrivate();
+
+        for (uint256 i = 0; i < invitees.length; i++) {
+            if (invitees[i] == address(0)) revert InvalidAddress();
+            if (eventInvites[eventId][invitees[i]]) revert AlreadyInvited();
+
+            eventInvites[eventId][invitees[i]] = true;
+            
+            emit UserInvited(eventId, invitees[i], msg.sender);
+        }
+    }
+
+    /// @notice Remove invitation from a private event
+    /// @param eventId Event identifier
+    /// @param invitee Address to remove invitation from
+    function removeInvitation(uint256 eventId, address invitee) external onlyOrganizer(eventId) {
+        if (events[eventId].startTime == 0) revert EventNotFound();
+        if (!eventInvites[eventId][invitee]) revert NotInvited();
+
+        eventInvites[eventId][invitee] = false;
+        
+        emit InvitationRevoked(eventId, invitee, msg.sender);
+    }
+
+    /// @notice Check if an address is invited to an event
+    /// @param eventId Event identifier
+    /// @param user Address to check
+    /// @return invited True if the user is invited
+    function isInvited(uint256 eventId, address user) external view returns (bool invited) {
+        return eventInvites[eventId][user];
+    }
+
+    /*//////////////////////////////////////////////////////////////
                         COMMENT SYSTEM
     //////////////////////////////////////////////////////////////*/
 
@@ -615,28 +678,6 @@ contract Assemble {
         return commentLikes[commentId][user];
     }
 
-    function getCommentReplies(uint256 parentId, uint256 eventId) external view returns (uint256[] memory) {
-        uint256[] memory eventCommentIds = eventComments[eventId];
-        uint256[] memory tempReplies = new uint256[](eventCommentIds.length); // Max possible size
-        uint256 replyCount = 0;
-
-        // Single loop to find replies
-        for (uint256 i = 0; i < eventCommentIds.length; i++) {
-            if (comments[eventCommentIds[i]].parentId == parentId) {
-                tempReplies[replyCount] = eventCommentIds[i];
-                replyCount++;
-            }
-        }
-
-        // Create correctly sized array
-        uint256[] memory replyIds = new uint256[](replyCount);
-        for (uint256 i = 0; i < replyCount; i++) {
-            replyIds[i] = tempReplies[i];
-        }
-
-        return replyIds;
-    }
-
     function banUser(address user, uint256 eventId) external {
         if (events[eventId].startTime == 0) revert EventNotFound();
         if (eventOrganizers[eventId] != msg.sender && msg.sender != feeTo) revert NotAuthorized();
@@ -700,12 +741,15 @@ contract Assemble {
     }
 
     function _distributePayment(uint256 eventId, uint256 amount) internal {
-        PaymentSplit[] memory splits = eventPaymentSplits[eventId];
+        PaymentSplit[] storage splits = eventPaymentSplits[eventId];
+        uint256 length = splits.length;
 
-        for (uint256 i = 0; i < splits.length; i++) {
-            uint256 payment = (amount * splits[i].basisPoints) / 10_000;
-            pendingWithdrawals[splits[i].recipient] += payment;
-            emit PaymentAllocated(eventId, splits[i].recipient, payment, splits[i].role);
+        for (uint256 i = 0; i < length;) {
+            PaymentSplit storage split = splits[i];
+            uint256 payment = (amount * split.basisPoints) / 10_000;
+            pendingWithdrawals[split.recipient] += payment;
+            emit PaymentAllocated(eventId, split.recipient, payment, split.role);
+            unchecked { ++i; }
         }
     }
 
@@ -714,14 +758,17 @@ contract Assemble {
     //////////////////////////////////////////////////////////////*/
 
     function _validatePaymentSplits(PaymentSplit[] calldata splits) internal pure {
-        if (splits.length == 0) revert NoSplits();
-        if (splits.length > MAX_PAYMENT_SPLITS) revert TooManySplits();
+        uint256 length = splits.length;
+        if (length == 0) revert NoSplits();
+        if (length > MAX_PAYMENT_SPLITS) revert TooManySplits();
 
         uint256 totalBps = 0;
-        for (uint256 i = 0; i < splits.length; i++) {
-            if (splits[i].recipient == address(0)) revert InvalidRecipient();
-            if (splits[i].basisPoints == 0) revert InvalidBasisPoints();
-            totalBps += splits[i].basisPoints;
+        for (uint256 i = 0; i < length;) {
+            PaymentSplit calldata split = splits[i];
+            if (split.recipient == address(0)) revert InvalidRecipient();
+            if (split.basisPoints == 0) revert InvalidBasisPoints();
+            totalBps += split.basisPoints;
+            unchecked { ++i; }
         }
         if (totalBps != 10_000) revert InvalidTotalBasisPoints();
     }
@@ -929,16 +976,6 @@ contract Assemble {
     /// @return used True if ticket has been used for check-in
     function isTicketUsed(uint256 ticketTokenId) external view returns (bool used) {
         return usedTickets[ticketTokenId];
-    }
-
-    /// @notice Get attendance badge for specific tier
-    /// @param user User address
-    /// @param eventId Event ID 
-    /// @param tierId Tier ID (0 for basic attendance)
-    /// @return attended True if user has tier-specific attendance badge
-    function hasAttendedTier(address user, uint256 eventId, uint256 tierId) external view returns (bool attended) {
-        uint256 badgeId = generateTokenId(TokenType.ATTENDANCE_BADGE, eventId, tierId, 0);
-        return balanceOf[user][badgeId] > 0;
     }
 
     function claimOrganizerCredential(uint256 eventId) external {

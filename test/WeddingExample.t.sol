@@ -92,6 +92,15 @@ contract WeddingExampleTest is Test {
         vm.prank(bride);
         uint256 eventId = assemble.createEvent(params, tiers, splits);
 
+        // Invite guests to the private wedding
+        address[] memory invitees = new address[](3);
+        invitees[0] = guest1;
+        invitees[1] = guest2;
+        invitees[2] = guest3;
+
+        vm.prank(bride);
+        assemble.inviteToEvent(eventId, invitees);
+
         console.log("Wedding invitation sent!");
         console.log("Gift distribution: 40% bride, 40% groom, 20% honeymoon fund");
 

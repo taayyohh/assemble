@@ -525,7 +525,8 @@ contract EdgeCaseTests is Test {
         vm.prank(alice);
         assemble.checkInWithTicket(eventId1, ticket1);
 
-        assertTrue(assemble.hasAttendedTier(alice, eventId1, 0), "Should have tier 0 badge for event 1");
+        uint256 badgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId1, 0, 0);
+        assertTrue(assemble.balanceOf(alice, badgeId) > 0, "Should have tier 0 badge for event 1");
         assertTrue(assemble.isTicketUsed(ticket1), "Ticket should be marked as used");
 
         // Try to reuse the same ticket - should fail
@@ -571,7 +572,8 @@ contract EdgeCaseTests is Test {
 
         // Should have both basic and tier-specific badges
         assertTrue(assemble.hasAttended(alice, eventId), "Should have basic attendance");
-        assertTrue(assemble.hasAttendedTier(alice, eventId, 0), "Should have tier-specific attendance");
+        uint256 tierBadgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
+        assertTrue(assemble.balanceOf(alice, tierBadgeId) > 0, "Should have tier-specific attendance");
         assertTrue(assemble.isTicketUsed(ticket), "Ticket should be marked as used");
 
         console.log("Mixed check-in methods work correctly:");
@@ -616,10 +618,11 @@ contract EdgeCaseTests is Test {
         assemble.checkInDelegate(eventId, ticket4, attacker); // Using attacker as 4th friend
 
         // Verify everyone has attendance badges
-        assertTrue(assemble.hasAttendedTier(alice, eventId, 0), "Alice should have attendance badge");
-        assertTrue(assemble.hasAttendedTier(bob, eventId, 0), "Bob should have attendance badge");
-        assertTrue(assemble.hasAttendedTier(charlie, eventId, 0), "Charlie should have attendance badge");
-        assertTrue(assemble.hasAttendedTier(attacker, eventId, 0), "Friend 4 should have attendance badge");
+        uint256 groupBadgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
+        assertTrue(assemble.balanceOf(alice, groupBadgeId) > 0, "Alice should have attendance badge");
+        assertTrue(assemble.balanceOf(bob, groupBadgeId) > 0, "Bob should have attendance badge");
+        assertTrue(assemble.balanceOf(charlie, groupBadgeId) > 0, "Charlie should have attendance badge");
+        assertTrue(assemble.balanceOf(attacker, groupBadgeId) > 0, "Friend 4 should have attendance badge");
 
         // Verify all tickets are marked as used
         assertTrue(assemble.isTicketUsed(ticket1), "Ticket 1 should be used");

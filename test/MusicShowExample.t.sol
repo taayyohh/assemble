@@ -150,10 +150,9 @@ contract MusicShowExampleTest is Test {
 
         // Generate specific ticket IDs for check-in
         uint256 gaTicket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
-        uint256 gaTicket2 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 2);
         uint256 vipTicket = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 2, 1);
         uint256 platinumTicket = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 3, 1);
-
+        
         // Different check-in scenarios
         vm.prank(fan1);
         assemble.checkInWithTicket(eventId, gaTicket1); // GA ticket holder
@@ -164,14 +163,18 @@ contract MusicShowExampleTest is Test {
         vm.prank(fan3);
         assemble.checkInWithTicket(eventId, platinumTicket); // Platinum backstage
 
-        // Verify tier-specific access
-        assertTrue(assemble.hasAttendedTier(fan1, eventId, 0), "GA ticket holder should have GA badge");
-        assertTrue(assemble.hasAttendedTier(fan2, eventId, 2), "VIP ticket holder should have VIP badge");
-        assertTrue(assemble.hasAttendedTier(fan3, eventId, 3), "Platinum holder should have Platinum badge");
+        // Verify tier-specific badges
+        uint256 gaBadgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
+        uint256 vipBadgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 2, 0);
+        uint256 platinumBadgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 3, 0);
         
-        // Verify access restrictions - GA holder shouldn't get VIP badge
-        assertFalse(assemble.hasAttendedTier(fan1, eventId, 2), "GA holder shouldn't have VIP access");
-        assertFalse(assemble.hasAttendedTier(fan1, eventId, 3), "GA holder shouldn't have Platinum access");
+        assertTrue(assemble.balanceOf(fan1, gaBadgeId) > 0, "GA ticket holder should have GA badge");
+        assertTrue(assemble.balanceOf(fan2, vipBadgeId) > 0, "VIP ticket holder should have VIP badge");
+        assertTrue(assemble.balanceOf(fan3, platinumBadgeId) > 0, "Platinum holder should have Platinum badge");
+
+        // Verify tier exclusivity
+        assertFalse(assemble.balanceOf(fan1, vipBadgeId) > 0, "GA holder shouldn't have VIP access");
+        assertFalse(assemble.balanceOf(fan1, platinumBadgeId) > 0, "GA holder shouldn't have Platinum access");
 
         console.log("Concert attendance with access verification:");
         console.log("  GA fan: General admission access");

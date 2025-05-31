@@ -125,13 +125,26 @@ contract CommentSystemExampleTest is Test {
 
         console.log("Threaded conversation created with multiple replies");
 
-        // Get replies to Alice's original comment
-        uint256[] memory replies = assemble.getCommentReplies(1, eventId);
-        assertEq(replies.length, 3, "Should have 3 direct replies");
+        // Get all comments and filter for replies to Alice's original comment (comment 1)
+        uint256[] memory allComments = assemble.getEventComments(eventId);
+        uint256 replyCount = 0;
+        for (uint256 i = 0; i < allComments.length; i++) {
+            CommentLibrary.Comment memory comment = assemble.getComment(allComments[i]);
+            if (comment.parentId == 1) {
+                replyCount++;
+            }
+        }
+        assertEq(replyCount, 3, "Should have 3 direct replies");
 
-        // Get replies to Charlie's comment
-        uint256[] memory charlieReplies = assemble.getCommentReplies(3, eventId);
-        assertEq(charlieReplies.length, 1, "Should have 1 reply to Charlie");
+        // Get replies to Charlie's comment (comment 3)
+        uint256 charlieReplyCount = 0;
+        for (uint256 i = 0; i < allComments.length; i++) {
+            CommentLibrary.Comment memory comment = assemble.getComment(allComments[i]);
+            if (comment.parentId == 3) {
+                charlieReplyCount++;
+            }
+        }
+        assertEq(charlieReplyCount, 1, "Should have 1 reply to Charlie");
 
         console.log("Thread structure preserved correctly");
     }
