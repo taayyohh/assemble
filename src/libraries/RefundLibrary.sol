@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/// @title Refund Management Library
-/// @notice Library for handling event cancellations and refunds
+/// @title Refund Library
+/// @notice Library for handling event cancellation and refund logic
+/// @author taayyohh
 library RefundLibrary {
     /// @notice Refund claim deadline (90 days after cancellation)
     uint256 internal constant REFUND_CLAIM_DEADLINE = 90 days;

@@ -1,6 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/*
+ ██████╗ ███████╗███████╗███████╗███╗   ███╗██████╗ ██╗     ███████╗
+██╔═══██╗██╔════╝██╔════╝██╔════╝████╗ ████║██╔══██╗██║     ██╔════╝
+███████║███████╗███████╗█████╗  ██╔████╔██║██████╔╝██║     █████╗  
+██╔══██║╚════██║╚════██║██╔══╝  ██║╚██╔╝██║██╔══██╗██║     ██╔══╝  
+██║  ██║███████║███████║███████╗██║ ╚═╝ ██║██████╔╝███████╗███████╗
+╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚═╝     ╚═╝╚═════╝ ╚══════╝╚══════╝
+                                                                     
+    🌟 Decentralized Event Management Protocol 🌟
+         Building the future of events onchain
+*/
+
 import { SocialLibrary } from "./libraries/SocialLibrary.sol";
 import { CommentLibrary } from "./libraries/CommentLibrary.sol";
 import { RefundLibrary } from "./libraries/RefundLibrary.sol";
@@ -8,6 +20,7 @@ import { RefundLibrary } from "./libraries/RefundLibrary.sol";
 /// @title Assemble - Decentralized Event Management Protocol
 /// @notice A comprehensive protocol for managing events, tickets, social interactions, and payments onchain
 /// @dev Uses ERC-6909 for multi-token functionality and EIP-1153 for gas optimization
+/// @author taayyohh
 contract Assemble {
     /*//////////////////////////////////////////////////////////////
                             CUSTOM ERRORS

@@ -36,7 +36,7 @@ contract InvariantTests is StdInvariant, Test {
     /// @notice Total token supply should always equal sum of individual balances
     function invariant_TokenSupplyConsistency() public view {
         uint256[] memory allTokenIds = handler.getAllTokenIds();
-
+        
         for (uint256 i = 0; i < allTokenIds.length; i++) {
             uint256 tokenId = allTokenIds[i];
             uint256 totalSupply = assemble.totalSupply(tokenId);
@@ -58,16 +58,16 @@ contract InvariantTests is StdInvariant, Test {
     /// @notice Payment splits for all events must always total 100%
     function invariant_PaymentSplitsTotal100Percent() public view {
         uint256[] memory allEventIds = handler.getAllEventIds();
-
+        
         for (uint256 i = 0; i < allEventIds.length; i++) {
             uint256 eventId = allEventIds[i];
             Assemble.PaymentSplit[] memory splits = assemble.getPaymentSplits(eventId);
-
+            
             uint256 totalBps = 0;
             for (uint256 j = 0; j < splits.length; j++) {
                 totalBps += splits[j].basisPoints;
             }
-
+            
             assertEq(totalBps, 10_000, "Payment splits must always total 100%");
         }
     }
@@ -75,11 +75,11 @@ contract InvariantTests is StdInvariant, Test {
     /// @notice Soulbound tokens should never be transferable
     function invariant_SoulboundTokensNotTransferable() public view {
         uint256[] memory allTokenIds = handler.getAllTokenIds();
-
+        
         for (uint256 i = 0; i < allTokenIds.length; i++) {
             uint256 tokenId = allTokenIds[i];
             Assemble.TokenType tokenType = Assemble.TokenType(tokenId >> 248);
-
+            
             if (tokenType == Assemble.TokenType.ATTENDANCE_BADGE || tokenType == Assemble.TokenType.ORGANIZER_CRED) {
                 // These should be soulbound - test by checking they can't be transferred
                 // This is tested in the actual transfer function, not here
@@ -92,20 +92,20 @@ contract InvariantTests is StdInvariant, Test {
     function invariant_RefundsNeverExceedPayments() public view {
         uint256[] memory allEventIds = handler.getAllEventIds();
         address[] memory allUsers = handler.getAllUsers();
-
+        
         for (uint256 i = 0; i < allEventIds.length; i++) {
             uint256 eventId = allEventIds[i];
-
+            
             if (assemble.isEventCancelled(eventId)) {
                 for (uint256 j = 0; j < allUsers.length; j++) {
                     address user = allUsers[j];
                     (uint256 ticketRefund, uint256 tipRefund) = assemble.getRefundAmounts(eventId, user);
-
+                    
                     // In our current implementation, we track exactly what users paid
                     // So refunds should equal payments (not exceed)
                     uint256 totalRefund = ticketRefund + tipRefund;
                     uint256 maxPossiblePayment = handler.getMaxPaymentForUser(eventId, user);
-
+                    
                     assertLe(totalRefund, maxPossiblePayment, "Refunds should not exceed payments");
                 }
             }
@@ -115,11 +115,11 @@ contract InvariantTests is StdInvariant, Test {
     /// @notice Event capacity should never be exceeded
     function invariant_EventCapacityNotExceeded() public view {
         uint256[] memory allEventIds = handler.getAllEventIds();
-
+        
         for (uint256 i = 0; i < allEventIds.length; i++) {
             uint256 eventId = allEventIds[i];
             (,, uint32 capacity,,,) = assemble.events(eventId);
-
+            
             // Sum all ticket tiers sold
             uint256 totalSold = 0;
             for (uint256 tierId = 0; tierId < 10; tierId++) {
@@ -132,7 +132,7 @@ contract InvariantTests is StdInvariant, Test {
                     break; // No more tiers
                 }
             }
-
+            
             assertLe(totalSold, capacity, "Total tickets sold should not exceed capacity");
         }
     }
@@ -141,7 +141,7 @@ contract InvariantTests is StdInvariant, Test {
     function invariant_ProtocolFeesCorrect() public view {
         uint256 protocolFeeBps = assemble.protocolFeeBps();
         assertLe(protocolFeeBps, 1000, "Protocol fee should not exceed 10%");
-
+        
         // Protocol fee recipient should have accumulated fees
         uint256 protocolFees = assemble.pendingWithdrawals(feeTo);
         assertGe(protocolFees, 0, "Protocol fees should be non-negative");
@@ -150,11 +150,11 @@ contract InvariantTests is StdInvariant, Test {
     /// @notice Friend relationships should be consistent
     function invariant_FriendRelationshipsConsistent() public view {
         address[] memory allUsers = handler.getAllUsers();
-
+        
         for (uint256 i = 0; i < allUsers.length; i++) {
             address user = allUsers[i];
             address[] memory friends = assemble.getFriends(user);
-
+            
             for (uint256 j = 0; j < friends.length; j++) {
                 address friend = friends[j];
                 assertTrue(assemble.isFriend(user, friend), "Friend list should be consistent with mapping");
@@ -167,16 +167,16 @@ contract InvariantTests is StdInvariant, Test {
     /// @notice Comment integrity should be maintained
     function invariant_CommentIntegrity() public view {
         uint256 nextCommentId = assemble.nextCommentId();
-
+        
         for (uint256 commentId = 1; commentId < nextCommentId; commentId++) {
             CommentLibrary.Comment memory comment = assemble.getComment(commentId);
-
+            
             if (comment.timestamp > 0) {
                 // Comment exists
                 assertNotEq(comment.author, address(0), "Comment author should not be zero");
                 assertGe(comment.likes, 0, "Likes should be non-negative");
                 assertLe(bytes(comment.content).length, 1000, "Comment should not exceed max length");
-
+                
                 // If comment has parent, parent should exist
                 if (comment.parentId > 0) {
                     CommentLibrary.Comment memory parentComment = assemble.getComment(comment.parentId);
@@ -191,14 +191,14 @@ contract InvariantTests is StdInvariant, Test {
 /// @notice Provides controlled randomized actions for the protocol
 contract AssembleHandler is Test {
     Assemble public assemble;
-
+    
     // Track state for invariants
     uint256[] public allEventIds;
     uint256[] public allTokenIds;
     address[] public allUsers;
     mapping(uint256 => address[]) public tokenHolders;
     mapping(uint256 => mapping(address => uint256)) public maxUserPayments;
-
+    
     // Ghost variables for tracking
     uint256 public totalProtocolFees;
     uint256 public totalRefundsClaimed;
@@ -214,7 +214,7 @@ contract AssembleHandler is Test {
 
     constructor(Assemble _assemble) {
         assemble = _assemble;
-
+        
         // Initialize some users
         for (uint256 i = 0; i < 10; i++) {
             address user = makeAddr(string(abi.encodePacked("user", vm.toString(i))));
@@ -267,13 +267,13 @@ contract AssembleHandler is Test {
 
     function purchaseTickets(uint256 actorSeed, uint256 eventIndex, uint256 quantity) public useActor(actorSeed) {
         if (allEventIds.length == 0) return;
-
+        
         eventIndex = bound(eventIndex, 0, allEventIds.length - 1);
         quantity = bound(quantity, 1, 10);
-
+        
         uint256 eventId = allEventIds[eventIndex];
         uint256 price = assemble.calculatePrice(eventId, 0, quantity);
-
+        
         if (price > 0 && msg.sender.balance >= price) {
             // Get sold count BEFORE purchase
             (,,, uint256 soldBefore,,,) = assemble.ticketTiers(eventId, 0);
@@ -285,16 +285,16 @@ contract AssembleHandler is Test {
                     uint256 tokenId =
                         assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, serialNumber);
 
-                    if (!_contains(allTokenIds, tokenId)) {
-                        allTokenIds.push(tokenId);
-                    }
-
-                    // Track token holders
-                    if (!_contains(tokenHolders[tokenId], msg.sender)) {
-                        tokenHolders[tokenId].push(msg.sender);
+                if (!_contains(allTokenIds, tokenId)) {
+                    allTokenIds.push(tokenId);
+                }
+                
+                // Track token holders
+                if (!_contains(tokenHolders[tokenId], msg.sender)) {
+                    tokenHolders[tokenId].push(msg.sender);
                     }
                 }
-
+                
                 // Track max payments
                 maxUserPayments[eventId][msg.sender] += price;
             } catch {
@@ -305,10 +305,10 @@ contract AssembleHandler is Test {
 
     function addFriend(uint256 actorSeed, uint256 friendIndex) public useActor(actorSeed) {
         if (allUsers.length < 2) return;
-
+        
         friendIndex = bound(friendIndex, 0, allUsers.length - 1);
         address friend = allUsers[friendIndex];
-
+        
         if (friend != msg.sender && !assemble.isFriend(msg.sender, friend)) {
             assemble.addFriend(friend);
         }
@@ -316,10 +316,10 @@ contract AssembleHandler is Test {
 
     function postComment(uint256 actorSeed, uint256 eventIndex, string calldata content) public useActor(actorSeed) {
         if (allEventIds.length == 0) return;
-
+        
         eventIndex = bound(eventIndex, 0, allEventIds.length - 1);
         uint256 eventId = allEventIds[eventIndex];
-
+        
         if (bytes(content).length > 0 && bytes(content).length <= 1000) {
             try assemble.postComment(eventId, content, 0) {
                 // Comment posted successfully
@@ -331,12 +331,12 @@ contract AssembleHandler is Test {
 
     function tipEvent(uint256 actorSeed, uint256 eventIndex, uint256 tipAmount) public useActor(actorSeed) {
         if (allEventIds.length == 0) return;
-
+        
         eventIndex = bound(eventIndex, 0, allEventIds.length - 1);
         tipAmount = bound(tipAmount, 0.001 ether, 0.1 ether);
-
+        
         uint256 eventId = allEventIds[eventIndex];
-
+        
         if (msg.sender.balance >= tipAmount) {
             try assemble.tipEvent{ value: tipAmount }(eventId) {
                 maxUserPayments[eventId][msg.sender] += tipAmount;
@@ -348,10 +348,10 @@ contract AssembleHandler is Test {
 
     function cancelEvent(uint256 actorSeed, uint256 eventIndex) public useActor(actorSeed) {
         if (allEventIds.length == 0) return;
-
+        
         eventIndex = bound(eventIndex, 0, allEventIds.length - 1);
         uint256 eventId = allEventIds[eventIndex];
-
+        
         if (assemble.eventOrganizers(eventId) == msg.sender) {
             try assemble.cancelEvent(eventId) {
                 // Event cancelled
@@ -373,10 +373,10 @@ contract AssembleHandler is Test {
 
     function claimTicketRefund(uint256 actorSeed, uint256 eventIndex) public useActor(actorSeed) {
         if (allEventIds.length == 0) return;
-
+        
         eventIndex = bound(eventIndex, 0, allEventIds.length - 1);
         uint256 eventId = allEventIds[eventIndex];
-
+        
         if (assemble.isEventCancelled(eventId)) {
             (uint256 refundAmount,) = assemble.getRefundAmounts(eventId, msg.sender);
             if (refundAmount > 0) {
@@ -391,10 +391,10 @@ contract AssembleHandler is Test {
 
     function claimTipRefund(uint256 actorSeed, uint256 eventIndex) public useActor(actorSeed) {
         if (allEventIds.length == 0) return;
-
+        
         eventIndex = bound(eventIndex, 0, allEventIds.length - 1);
         uint256 eventId = allEventIds[eventIndex];
-
+        
         if (assemble.isEventCancelled(eventId)) {
             (, uint256 refundAmount) = assemble.getRefundAmounts(eventId, msg.sender);
             if (refundAmount > 0) {
@@ -442,4 +442,4 @@ contract AssembleHandler is Test {
         }
         return false;
     }
-}
+} 

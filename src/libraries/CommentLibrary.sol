@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 /// @title Comment Library
 /// @notice Library for handling comment system functionality
+/// @author taayyohh
 library CommentLibrary {
     /// @notice Comment data structure
     struct Comment {

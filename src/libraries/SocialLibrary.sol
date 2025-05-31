@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 /// @title Social Library
 /// @notice Library for handling social graph functionality
+/// @author taayyohh
 library SocialLibrary {
     /// @notice RSVP status for social coordination
     enum RSVPStatus {

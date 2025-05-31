@@ -190,3 +190,19 @@ assemble.tipEvent{value: tipAmount}(eventId, platformAddress, 150);
 ## License
 
 MIT
+
+## 🌐 Multi-Chain Deployment
+
+Assemble Protocol is deployed with **identical addresses** across multiple networks using CREATE2:
+
+**Contract Address (All Networks):**
+- **Assemble**: `0x00000004FE7c1E461A1703AF603F1A5F080Be253`
+
+**Live Networks:**
+- ✅ Ethereum Mainnet (Chain ID: 1)
+- ✅ World Chain Mainnet (Chain ID: 480) 
+- ✅ Flow EVM Mainnet (Chain ID: 747)
+- ✅ Sepolia Testnet (Chain ID: 11155111)
+
+**Deployment Documentation:**
+- 📄 [Deployment Registry](./deployments.json)
