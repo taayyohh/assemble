@@ -40,10 +40,10 @@ contract InvariantTests is StdInvariant, Test {
         for (uint256 i = 0; i < allTokenIds.length; i++) {
             uint256 tokenId = allTokenIds[i];
             uint256 totalSupply = assemble.totalSupply(tokenId);
-            
+
             // Skip tokens that don't exist (totalSupply = 0)
             if (totalSupply == 0) continue;
-            
+
             uint256 sumOfBalances = 0;
 
             address[] memory holders = handler.getTokenHolders(tokenId);
@@ -259,7 +259,7 @@ contract AssembleHandler is Test {
         });
 
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](1);
-        splits[0] = Assemble.PaymentSplit(msg.sender, 10_000, "organizer");
+        splits[0] = Assemble.PaymentSplit(msg.sender, 10_000);
 
         uint256 eventId = assemble.createEvent(params, tiers, splits);
         allEventIds.push(eventId);

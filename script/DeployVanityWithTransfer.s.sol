@@ -19,41 +19,37 @@ contract DeployVanityWithTransferScript is Script {
         console.log("Initial deployer:", INITIAL_DEPLOYER);
         console.log("Target multisig:", MULTISIG);
         console.log("Using salt:", vm.toString(salt));
-        
+
         // Predict the deployment address
         address predictedAddress = vm.computeCreate2Address(
-            salt,
-            keccak256(abi.encodePacked(type(Assemble).creationCode, abi.encode(INITIAL_DEPLOYER)))
+            salt, keccak256(abi.encodePacked(type(Assemble).creationCode, abi.encode(INITIAL_DEPLOYER)))
         );
         console.log("Predicted address:", predictedAddress);
-        
+
         // Verify this is a vanity address (starts with 0x0000000)
-        require(
-            uint160(predictedAddress) >> 132 == 0, 
-            "Address does not start with 0x0000000"
-        );
-        
+        require(uint160(predictedAddress) >> 132 == 0, "Address does not start with 0x0000000");
+
         vm.startBroadcast(INITIAL_DEPLOYER);
 
         // Deploy using CREATE2 with the vanity salt
-        Assemble assemble = new Assemble{salt: salt}(INITIAL_DEPLOYER);
-        
+        Assemble assemble = new Assemble{ salt: salt }(INITIAL_DEPLOYER);
+
         console.log(">> Assemble deployed at:", address(assemble));
         console.log("Verification: Address matches prediction:", address(assemble) == predictedAddress);
-        
+
         // Immediately transfer control to multisig
         console.log(">> Transferring control to multisig...");
         assemble.setFeeTo(MULTISIG);
-        
+
         vm.stopBroadcast();
-        
+
         console.log(">> Control transferred to multisig");
         console.log("Final state:");
         console.log("  - Contract address:", address(assemble));
         console.log("  - Fee recipient:", assemble.feeTo());
         console.log("  - Protocol fee:", assemble.protocolFeeBps(), "bps");
         console.log("  - Next event ID:", assemble.nextEventId());
-        
+
         console.log("");
         console.log(">> Deployment complete!");
         console.log("Contract deployed to vanity address and control transferred to multisig");
@@ -64,19 +60,18 @@ contract DeployVanityWithTransferScript is Script {
     /// @return isVanity True if the salt produces an address starting with 0x0000000
     function verifyVanitySalt(bytes32 salt) external view returns (bool isVanity) {
         address predicted = vm.computeCreate2Address(
-            salt,
-            keccak256(abi.encodePacked(type(Assemble).creationCode, abi.encode(INITIAL_DEPLOYER)))
+            salt, keccak256(abi.encodePacked(type(Assemble).creationCode, abi.encode(INITIAL_DEPLOYER)))
         );
-        
+
         // Check if address starts with 0x0000000 (7 zeros)
         isVanity = uint160(predicted) >> 132 == 0;
-        
+
         if (isVanity) {
             console.log(">> Salt produces vanity address:", predicted);
         } else {
             console.log("XX Salt does not produce vanity address:", predicted);
         }
-        
+
         return isVanity;
     }
 
@@ -86,27 +81,27 @@ contract DeployVanityWithTransferScript is Script {
         console.log("=== Normal Deployment with Transfer ===");
         console.log("Deployer:", INITIAL_DEPLOYER);
         console.log("Target multisig:", MULTISIG);
-        
+
         vm.startBroadcast(INITIAL_DEPLOYER);
 
         // Regular deployment
         Assemble assemble = new Assemble(INITIAL_DEPLOYER);
-        
+
         console.log(">> Assemble deployed at:", address(assemble));
-        
+
         // Transfer control to multisig
         console.log(">> Transferring control to multisig...");
         assemble.setFeeTo(MULTISIG);
-        
+
         vm.stopBroadcast();
-        
+
         console.log(">> Control transferred to multisig");
         console.log("Final state:");
         console.log("  - Contract address:", address(assemble));
         console.log("  - Fee recipient:", assemble.feeTo());
         console.log("  - Protocol fee:", assemble.protocolFeeBps(), "bps");
-        
+
         console.log("");
         console.log(">> Normal deployment complete!");
     }
-} 
+}

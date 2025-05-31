@@ -64,7 +64,7 @@ contract PrivateEventTests is Test {
         invitees[0] = alice;
 
         vm.prank(unauthorized);
-        vm.expectRevert(abi.encodeWithSignature("NotEventOrganizer()"));
+        vm.expectRevert(abi.encodeWithSignature("NotOrganizer()"));
         assemble.inviteToEvent(privateEventId, invitees);
     }
 
@@ -76,7 +76,7 @@ contract PrivateEventTests is Test {
         invitees[0] = alice;
 
         vm.prank(organizer);
-        vm.expectRevert(abi.encodeWithSignature("EventNotPrivate()"));
+        vm.expectRevert(abi.encodeWithSignature("NotPrivate()"));
         assemble.inviteToEvent(publicEventId, invitees);
     }
 
@@ -206,7 +206,7 @@ contract PrivateEventTests is Test {
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 6 days,
             transferrable: false // Non-transferrable exclusive access
-        });
+         });
         tiers[1] = Assemble.TicketTier({
             name: "Artist & Curator Invite",
             price: 0, // Free for artists and curators
@@ -218,8 +218,8 @@ contract PrivateEventTests is Test {
         });
 
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](2);
-        splits[0] = Assemble.PaymentSplit(organizer, 6000, "gallery"); // 60%
-        splits[1] = Assemble.PaymentSplit(alice, 4000, "artist_collective"); // 40%
+        splits[0] = Assemble.PaymentSplit(organizer, 6000); // 60%
+        splits[1] = Assemble.PaymentSplit(alice, 4000); // 40%
 
         vm.prank(organizer);
         uint256 artShowId = assemble.createEvent(params, tiers, splits);
@@ -293,7 +293,7 @@ contract PrivateEventTests is Test {
         });
 
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](1);
-        splits[0] = Assemble.PaymentSplit(organizer, 10_000, "organizer");
+        splits[0] = Assemble.PaymentSplit(organizer, 10_000);
 
         vm.prank(organizer);
         return assemble.createEvent(params, tiers, splits);
@@ -323,9 +323,9 @@ contract PrivateEventTests is Test {
         });
 
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](1);
-        splits[0] = Assemble.PaymentSplit(organizer, 10_000, "organizer");
+        splits[0] = Assemble.PaymentSplit(organizer, 10_000);
 
         vm.prank(organizer);
         return assemble.createEvent(params, tiers, splits);
     }
-} 
+}

@@ -77,9 +77,9 @@ contract DinnerExampleTest is Test {
 
         // Restaurant revenue splits
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](3);
-        splits[0] = Assemble.PaymentSplit(chef, 4000, "executive_chef"); // 40%
-        splits[1] = Assemble.PaymentSplit(restaurant, 5000, "restaurant"); // 50%
-        splits[2] = Assemble.PaymentSplit(organizer, 1000, "event_coordinator"); // 10%
+        splits[0] = Assemble.PaymentSplit(chef, 4000); // 40%
+        splits[1] = Assemble.PaymentSplit(restaurant, 5000); // 50%
+        splits[2] = Assemble.PaymentSplit(organizer, 1000); // 10%
 
         vm.prank(organizer);
         uint256 eventId = assemble.createEvent(params, tiers, splits);
@@ -217,10 +217,10 @@ contract DinnerExampleTest is Test {
         address communityCenter = makeAddr("communityCenter");
 
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](4);
-        splits[0] = Assemble.PaymentSplit(chef, 3000, "community_chef"); // 30%
-        splits[1] = Assemble.PaymentSplit(restaurant, 4000, "venue_costs"); // 40%
-        splits[2] = Assemble.PaymentSplit(localFoodBank, 2000, "food_support"); // 20%
-        splits[3] = Assemble.PaymentSplit(communityCenter, 1000, "community_programs"); // 10%
+        splits[0] = Assemble.PaymentSplit(chef, 3000); // 30%
+        splits[1] = Assemble.PaymentSplit(restaurant, 4000); // 40%
+        splits[2] = Assemble.PaymentSplit(localFoodBank, 2000); // 20%
+        splits[3] = Assemble.PaymentSplit(communityCenter, 1000); // 10%
 
         vm.prank(organizer);
         uint256 eventId = assemble.createEvent(params, tiers, splits);

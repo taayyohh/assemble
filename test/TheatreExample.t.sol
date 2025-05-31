@@ -81,10 +81,10 @@ contract TheatreExampleTest is Test {
 
         // Revenue splits for theatre production
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](4);
-        splits[0] = Assemble.PaymentSplit(castCrew, 4000, "cast_and_crew"); // 40%
-        splits[1] = Assemble.PaymentSplit(director, 2000, "director"); // 20%
-        splits[2] = Assemble.PaymentSplit(theatre, 3000, "theatre_venue"); // 30%
-        splits[3] = Assemble.PaymentSplit(theatre, 1000, "production_costs"); // 10%
+        splits[0] = Assemble.PaymentSplit(castCrew, 4000); // 40%
+        splits[1] = Assemble.PaymentSplit(director, 2000); // 20%
+        splits[2] = Assemble.PaymentSplit(theatre, 3000); // 30%
+        splits[3] = Assemble.PaymentSplit(theatre, 1000); // 10%
 
         vm.prank(director);
         uint256 eventId = assemble.createEvent(params, tiers, splits);
@@ -143,14 +143,17 @@ contract TheatreExampleTest is Test {
 
         // Verify different types of attendance
         assertTrue(assemble.hasAttended(theatergoer1, eventId), "Basic check-in should work");
-        
-        // Verify ticket usage tracking
-        assertTrue(assemble.isTicketUsed(premiumTicket), "Premium ticket should be marked as used");
-        assertFalse(assemble.isTicketUsed(gaTicket1), "Unused ticket should not be marked as used");
 
-        // Verify tier-specific badges 
+        // Verify ticket usage tracking
+        assertTrue(assemble.usedTickets(premiumTicket), "Premium ticket should be marked as used");
+        assertFalse(assemble.usedTickets(gaTicket1), "Unused ticket should not be marked as used");
+
+        // Verify tier-specific badges
         uint256 premiumBadgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 2, 0);
-        assertTrue(assemble.balanceOf(theatergoer2, premiumBadgeId) > 0, "Premium ticket holder should have tier-specific badge");
+        assertTrue(
+            assemble.balanceOf(theatergoer2, premiumBadgeId) > 0,
+            "Premium ticket holder should have tier-specific badge"
+        );
         assertFalse(assemble.balanceOf(theatergoer1, premiumBadgeId) > 0, "Basic check-in shouldn't get premium badge");
 
         console.log("Theatre attendance verified:");
@@ -198,9 +201,9 @@ contract TheatreExampleTest is Test {
 
         // Season revenue splits
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](3);
-        splits[0] = Assemble.PaymentSplit(castCrew, 5000, "artists_fund"); // 50%
-        splits[1] = Assemble.PaymentSplit(theatre, 4000, "operations"); // 40%
-        splits[2] = Assemble.PaymentSplit(director, 1000, "artistic_director"); // 10%
+        splits[0] = Assemble.PaymentSplit(castCrew, 5000); // 50%
+        splits[1] = Assemble.PaymentSplit(theatre, 4000); // 40%
+        splits[2] = Assemble.PaymentSplit(director, 1000); // 10%
 
         vm.prank(theatre);
         uint256 eventId = assemble.createEvent(params, tiers, splits);

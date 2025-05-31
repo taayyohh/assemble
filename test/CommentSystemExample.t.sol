@@ -195,18 +195,18 @@ contract CommentSystemExampleTest is Test {
 
         // Test empty comment rejection
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSignature("InvalidContentLength()"));
+        vm.expectRevert(abi.encodeWithSignature("BadContent()"));
         assemble.postComment(eventId, "", 0);
 
         // Test comment too long rejection
         string memory longComment = _generateLongString(1001); // Over 1000 char limit
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSignature("InvalidContentLength()"));
+        vm.expectRevert(abi.encodeWithSignature("BadContent()"));
         assemble.postComment(eventId, longComment, 0);
 
         // Test replying to non-existent comment
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSignature("ParentNotFound()"));
+        vm.expectRevert(abi.encodeWithSignature("NoParent()"));
         assemble.postComment(eventId, "Reply to nothing", 999);
 
         console.log("All comment validations working correctly");
@@ -282,7 +282,7 @@ contract CommentSystemExampleTest is Test {
         });
 
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](1);
-        splits[0] = Assemble.PaymentSplit(organizer, 10_000, "organizer");
+        splits[0] = Assemble.PaymentSplit(organizer, 10_000);
 
         return assemble.createEvent(params, tiers, splits);
     }

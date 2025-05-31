@@ -85,10 +85,10 @@ contract MusicShowExampleTest is Test {
 
         // Music industry revenue splits
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](4);
-        splits[0] = Assemble.PaymentSplit(artist, 5500, "artist_performance"); // 55%
-        splits[1] = Assemble.PaymentSplit(venue, 2500, "venue_rental"); // 25%
-        splits[2] = Assemble.PaymentSplit(manager, 1500, "artist_management"); // 15%
-        splits[3] = Assemble.PaymentSplit(soundEngineer, 500, "sound_production"); // 5%
+        splits[0] = Assemble.PaymentSplit(artist, 5500); // 55%
+        splits[1] = Assemble.PaymentSplit(venue, 2500); // 25%
+        splits[2] = Assemble.PaymentSplit(manager, 1500); // 15%
+        splits[3] = Assemble.PaymentSplit(soundEngineer, 500); // 5%
 
         vm.prank(manager);
         uint256 eventId = assemble.createEvent(params, tiers, splits);
@@ -152,7 +152,7 @@ contract MusicShowExampleTest is Test {
         uint256 gaTicket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
         uint256 vipTicket = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 2, 1);
         uint256 platinumTicket = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 3, 1);
-        
+
         // Different check-in scenarios
         vm.prank(fan1);
         assemble.checkInWithTicket(eventId, gaTicket1); // GA ticket holder
@@ -167,7 +167,7 @@ contract MusicShowExampleTest is Test {
         uint256 gaBadgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
         uint256 vipBadgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 2, 0);
         uint256 platinumBadgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 3, 0);
-        
+
         assertTrue(assemble.balanceOf(fan1, gaBadgeId) > 0, "GA ticket holder should have GA badge");
         assertTrue(assemble.balanceOf(fan2, vipBadgeId) > 0, "VIP ticket holder should have VIP badge");
         assertTrue(assemble.balanceOf(fan3, platinumBadgeId) > 0, "Platinum holder should have Platinum badge");
@@ -235,10 +235,10 @@ contract MusicShowExampleTest is Test {
         address marketing = makeAddr("marketing");
 
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](4);
-        splits[0] = Assemble.PaymentSplit(artistsPool, 4000, "artists_collective"); // 40%
-        splits[1] = Assemble.PaymentSplit(venue, 3000, "venue_operations"); // 30%
-        splits[2] = Assemble.PaymentSplit(production, 2000, "stage_production"); // 20%
-        splits[3] = Assemble.PaymentSplit(marketing, 1000, "marketing_promo"); // 10%
+        splits[0] = Assemble.PaymentSplit(artistsPool, 4000); // 40%
+        splits[1] = Assemble.PaymentSplit(venue, 3000); // 30%
+        splits[2] = Assemble.PaymentSplit(production, 2000); // 20%
+        splits[3] = Assemble.PaymentSplit(marketing, 1000); // 10%
 
         vm.prank(production);
         uint256 eventId = assemble.createEvent(params, tiers, splits);

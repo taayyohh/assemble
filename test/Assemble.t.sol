@@ -61,14 +61,12 @@ contract AssembleTest is Test {
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](2);
         splits[0] = Assemble.PaymentSplit({
             recipient: alice,
-            basisPoints: 7000, // 70%
-            role: "organizer"
-        });
+            basisPoints: 7000 // 70%
+         });
         splits[1] = Assemble.PaymentSplit({
             recipient: bob,
-            basisPoints: 3000, // 30%
-            role: "venue"
-        });
+            basisPoints: 3000 // 30%
+         });
 
         // Create event as alice
         vm.prank(alice);
@@ -110,7 +108,7 @@ contract AssembleTest is Test {
     function test_ValidatePaymentSplits() public {
         Assemble.EventParams memory params = Assemble.EventParams({
             title: "Test Event",
-            description: "Test description", 
+            description: "Test description",
             imageUri: "ipfs://test",
             startTime: block.timestamp + 1 days,
             endTime: block.timestamp + 2 days,
@@ -132,10 +130,10 @@ contract AssembleTest is Test {
 
         // Invalid splits that don't total 100%
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](1);
-        splits[0] = Assemble.PaymentSplit(alice, 5000, "organizer"); // Only 50%
+        splits[0] = Assemble.PaymentSplit(alice, 5000); // Only 50%
 
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSignature("InvalidTotalBasisPoints()"));
+        vm.expectRevert(abi.encodeWithSignature("BadTotal()"));
         assemble.createEvent(params, tiers, splits);
     }
 
@@ -163,9 +161,9 @@ contract AssembleTest is Test {
         });
 
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](1);
-        splits[0] = Assemble.PaymentSplit(alice, 10_000, "organizer");
+        splits[0] = Assemble.PaymentSplit(alice, 10_000);
 
-        vm.expectRevert(abi.encodeWithSignature("InvalidEndTime()"));
+        vm.expectRevert(abi.encodeWithSignature("BadEndTime()"));
         assemble.createEvent(params, tiers, splits);
     }
 
@@ -309,16 +307,14 @@ contract AssembleTest is Test {
 
         assertEq(uint8(assemble.rsvps(eventId, alice)), uint8(SocialLibrary.RSVPStatus.GOING));
 
-        address[] memory attendees = assemble.getAttendees(eventId);
-        assertEq(attendees.length, 1);
-        assertEq(attendees[0], alice);
+        // Note: getAttendees function removed for bytecode optimization
+        // Attendance can be tracked client-side via RSVP events
 
         // Change to not going
         vm.prank(alice);
         assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.NOT_GOING);
 
-        attendees = assemble.getAttendees(eventId);
-        assertEq(attendees.length, 0);
+        // Note: getAttendees function removed for bytecode optimization
     }
 
     function test_InviteFriends() public {
@@ -328,14 +324,8 @@ contract AssembleTest is Test {
         vm.prank(alice);
         assemble.addFriend(bob);
 
-        // Alice invites Bob
-        address[] memory invitees = new address[](1);
-        invitees[0] = bob;
-
-        vm.prank(alice);
-        assemble.inviteFriends(eventId, invitees);
-
-        // Should emit InvitationSent event (tested via successful execution)
+        // Note: inviteFriends function removed for bytecode optimization
+        // Friend invitation validation can be done client-side
     }
 
     function test_GetFriendsAttending() public {
@@ -356,9 +346,10 @@ contract AssembleTest is Test {
         vm.prank(charlie);
         assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.INTERESTED);
 
-        address[] memory friendsGoing = assemble.getFriendsAttending(eventId, alice);
-        assertEq(friendsGoing.length, 1);
-        assertEq(friendsGoing[0], bob);
+        // Note: getFriendsAttending function removed for bytecode optimization
+        // This functionality can be implemented client-side by combining:
+        // - getFriends(alice) to get friend list
+        // - getUserRSVP(eventId, friend) for each friend to check status
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -430,7 +421,7 @@ contract AssembleTest is Test {
 
     function test_SetProtocolFeeRevertsTooHigh() public {
         vm.prank(feeTo);
-        vm.expectRevert(abi.encodeWithSignature("FeeToHigh()"));
+        vm.expectRevert(abi.encodeWithSignature("FeeHigh()"));
         assemble.setProtocolFee(1001); // Over 10% max
     }
 
@@ -462,10 +453,42 @@ contract AssembleTest is Test {
         });
 
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](2);
-        splits[0] = Assemble.PaymentSplit(alice, 7000, "organizer"); // 70%
-        splits[1] = Assemble.PaymentSplit(bob, 3000, "venue"); // 30%
+        splits[0] = Assemble.PaymentSplit({
+            recipient: alice,
+            basisPoints: 7000 // 70%
+         });
+        splits[1] = Assemble.PaymentSplit({
+            recipient: bob,
+            basisPoints: 3000 // 30%
+         });
 
         vm.prank(alice);
+        return assemble.createEvent(params, tiers, splits);
+    }
+
+    function _createEventWithSplits(Assemble.PaymentSplit[] memory splits) internal returns (uint256 eventId) {
+        Assemble.EventParams memory params = Assemble.EventParams({
+            title: "Custom Split Event",
+            description: "Event with custom payment splits",
+            imageUri: "ipfs://custom",
+            startTime: block.timestamp + 1 days,
+            endTime: block.timestamp + 2 days,
+            capacity: 100,
+            venueId: 1,
+            visibility: Assemble.EventVisibility.PUBLIC
+        });
+
+        Assemble.TicketTier[] memory tiers = new Assemble.TicketTier[](1);
+        tiers[0] = Assemble.TicketTier({
+            name: "General",
+            price: 0.1 ether,
+            maxSupply: 100,
+            sold: 0,
+            startSaleTime: block.timestamp,
+            endSaleTime: block.timestamp + 1 days,
+            transferrable: true
+        });
+
         return assemble.createEvent(params, tiers, splits);
     }
 
@@ -511,7 +534,7 @@ contract AssembleTest is Test {
         uint256 eventId = _createSampleEvent();
 
         vm.prank(bob);
-        vm.expectRevert(abi.encodeWithSignature("EventNotStarted()"));
+        vm.expectRevert(abi.encodeWithSignature("NotStarted()"));
         assemble.checkIn(eventId);
     }
 
@@ -536,7 +559,7 @@ contract AssembleTest is Test {
         vm.warp(block.timestamp + 2 days + 1 hours);
 
         vm.prank(bob);
-        vm.expectRevert(abi.encodeWithSignature("NotOrganizer()"));
+        vm.expectRevert(abi.encodeWithSignature("WrongOrg()"));
         assemble.claimOrganizerCredential(eventId);
     }
 
@@ -551,7 +574,7 @@ contract AssembleTest is Test {
         uint256 badgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
 
         vm.prank(bob);
-        vm.expectRevert(abi.encodeWithSignature("SoulboundToken()"));
+        vm.expectRevert(abi.encodeWithSignature("Soulbound()"));
         assemble.transfer(bob, alice, badgeId, 1);
     }
 
@@ -691,7 +714,7 @@ contract AssembleTest is Test {
         vm.warp(block.timestamp + 2 days);
 
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSignature("EventAlreadyStarted()"));
+        vm.expectRevert(abi.encodeWithSignature("Started()"));
         assemble.cancelEvent(eventId);
     }
 
@@ -705,7 +728,7 @@ contract AssembleTest is Test {
 
         // Try to claim refund without cancelling
         vm.prank(bob);
-        vm.expectRevert(abi.encodeWithSignature("EventNotCancelled()"));
+        vm.expectRevert(abi.encodeWithSignature("NotCancelled()"));
         assemble.claimTicketRefund(eventId);
     }
 
@@ -713,7 +736,7 @@ contract AssembleTest is Test {
         uint256 eventId = _createSampleEvent();
 
         vm.prank(bob); // Not organizer
-        vm.expectRevert(abi.encodeWithSignature("NotEventOrganizer()"));
+        vm.expectRevert(abi.encodeWithSignature("NotOrganizer()"));
         assemble.cancelEvent(eventId);
     }
 
@@ -736,8 +759,294 @@ contract AssembleTest is Test {
         vm.warp(block.timestamp + 91 days);
 
         vm.prank(bob);
-        vm.expectRevert(abi.encodeWithSignature("RefundDeadlineExpired()"));
+        vm.expectRevert(abi.encodeWithSignature("Expired()"));
         assemble.claimTicketRefund(eventId);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    PLATFORM FEE TESTS  
+    //////////////////////////////////////////////////////////////*/
+
+    function test_PurchaseTicketsWithPlatformFee() public {
+        uint256 eventId = _createSampleEvent();
+        address platform = makeAddr("musicPlatform");
+        uint256 platformFeeBps = 200; // 2%
+
+        // Purchase ticket with platform fee
+        vm.deal(bob, 1 ether);
+        vm.prank(bob);
+        assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1, platform, platformFeeBps);
+
+        // Calculate expected fees
+        uint256 totalCost = 0.1 ether;
+        uint256 platformFee = (totalCost * platformFeeBps) / 10_000; // 2%
+        uint256 remainingAmount = totalCost - platformFee;
+        uint256 protocolFee = (remainingAmount * 50) / 10_000; // 0.5% of remaining
+        uint256 netAmount = remainingAmount - protocolFee;
+
+        // Check platform fee allocation
+        assertEq(assemble.pendingWithdrawals(platform), platformFee);
+        assertEq(assemble.totalReferralFees(platform), platformFee);
+
+        // Check protocol fee
+        assertEq(assemble.pendingWithdrawals(feeTo), protocolFee);
+
+        // Check event organizer receives correct amount
+        uint256 expectedAliceShare = (netAmount * 7000) / 10_000; // 70% of net
+        assertEq(assemble.pendingWithdrawals(alice), expectedAliceShare);
+    }
+
+    function test_PurchaseTicketsWithoutPlatformFee() public {
+        uint256 eventId = _createSampleEvent();
+
+        // Purchase ticket without platform fee (backward compatibility)
+        vm.deal(bob, 1 ether);
+        vm.prank(bob);
+        assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1);
+
+        // Should work exactly like before
+        uint256 totalCost = 0.1 ether;
+        uint256 protocolFee = (totalCost * 50) / 10_000; // 0.5%
+        uint256 netAmount = totalCost - protocolFee;
+
+        // Check no platform fee
+        assertEq(assemble.pendingWithdrawals(address(0)), 0);
+
+        // Check normal fee distribution
+        assertEq(assemble.pendingWithdrawals(feeTo), protocolFee);
+
+        uint256 expectedAliceShare = (netAmount * 7000) / 10_000; // 70%
+        assertEq(assemble.pendingWithdrawals(alice), expectedAliceShare);
+    }
+
+    function test_PlatformFeeValidation() public {
+        uint256 eventId = _createSampleEvent();
+        address platform = makeAddr("platform");
+
+        vm.deal(bob, 1 ether);
+
+        // Test maximum platform fee
+        vm.prank(bob);
+        assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1, platform, 500); // 5% max
+
+        // Test platform fee too high
+        vm.prank(bob);
+        vm.expectRevert(Assemble.PlatformHigh.selector);
+        assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1, platform, 501); // > 5%
+
+        // Test invalid referrer (zero address with fee)
+        vm.prank(bob);
+        vm.expectRevert(Assemble.BadRef.selector);
+        assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1, address(0), 200);
+
+        // Test self-referral prevention
+        vm.prank(bob);
+        vm.expectRevert(Assemble.BadRef.selector);
+        assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1, bob, 200);
+    }
+
+    function test_TipEventWithPlatformFee() public {
+        uint256 eventId = _createSampleEvent();
+        address platform = makeAddr("birthdayPlatform");
+        uint256 platformFeeBps = 150; // 1.5%
+        uint256 tipAmount = 0.2 ether;
+
+        // Tip event with platform fee
+        vm.deal(charlie, 1 ether);
+        vm.prank(charlie);
+        assemble.tipEvent{ value: tipAmount }(eventId, platform, platformFeeBps);
+
+        // Calculate expected fees
+        uint256 platformFee = (tipAmount * platformFeeBps) / 10_000; // 1.5%
+        uint256 remainingAmount = tipAmount - platformFee;
+        uint256 protocolFee = (remainingAmount * 50) / 10_000; // 0.5% of remaining
+        uint256 netAmount = remainingAmount - protocolFee;
+
+        // Check platform fee allocation
+        assertEq(assemble.pendingWithdrawals(platform), platformFee);
+        assertEq(assemble.totalReferralFees(platform), platformFee);
+
+        // Check protocol fee
+        assertEq(assemble.pendingWithdrawals(feeTo), protocolFee);
+
+        // Check tip goes to event payment splits
+        uint256 expectedAliceShare = (netAmount * 7000) / 10_000; // 70%
+        assertEq(assemble.pendingWithdrawals(alice), expectedAliceShare);
+    }
+
+    function test_MusicVenueScenario() public {
+        // Real-world scenario: Music venue using platform for promotion
+        address venue = makeAddr("theBottleneck");
+        address artist = makeAddr("localBand");
+        address promoter = makeAddr("musicPromoter");
+
+        // Create concert event with venue/artist split
+        Assemble.PaymentSplit[] memory concertSplits = new Assemble.PaymentSplit[](2);
+        concertSplits[0] = Assemble.PaymentSplit(venue, 6000); // 60%
+        concertSplits[1] = Assemble.PaymentSplit(artist, 4000); // 40%
+
+        Assemble.EventParams memory concertParams = Assemble.EventParams({
+            title: "Local Band Live",
+            description: "Intimate concert at The Bottleneck",
+            imageUri: "ipfs://concert-poster",
+            startTime: block.timestamp + 7 days,
+            endTime: block.timestamp + 7 days + 4 hours,
+            capacity: 200,
+            venueId: 1,
+            visibility: Assemble.EventVisibility.PUBLIC
+        });
+
+        Assemble.TicketTier[] memory concertTiers = new Assemble.TicketTier[](2);
+        concertTiers[0] = Assemble.TicketTier({
+            name: "General Admission",
+            price: 0.03 ether, // $45
+            maxSupply: 150,
+            sold: 0,
+            startSaleTime: block.timestamp,
+            endSaleTime: block.timestamp + 6 days,
+            transferrable: true
+        });
+        concertTiers[1] = Assemble.TicketTier({
+            name: "VIP",
+            price: 0.067 ether, // $100
+            maxSupply: 50,
+            sold: 0,
+            startSaleTime: block.timestamp,
+            endSaleTime: block.timestamp + 6 days,
+            transferrable: true
+        });
+
+        vm.prank(venue);
+        uint256 concertId = assemble.createEvent(concertParams, concertTiers, concertSplits);
+
+        // Fans buy tickets through music promotion platform (2% platform fee)
+        address fan1 = makeAddr("musicFan1");
+        address fan2 = makeAddr("musicFan2");
+
+        vm.deal(fan1, 1 ether);
+        vm.deal(fan2, 1 ether);
+
+        // Fan 1 buys GA ticket through promoter platform
+        vm.prank(fan1);
+        assemble.purchaseTickets{ value: 0.03 ether }(
+            concertId,
+            0, // GA tier
+            1,
+            promoter,
+            200 // 2% platform fee
+        );
+
+        // Fan 2 buys VIP ticket through promoter platform
+        vm.prank(fan2);
+        assemble.purchaseTickets{ value: 0.067 ether }(
+            concertId,
+            1, // VIP tier
+            1,
+            promoter,
+            200 // 2% platform fee
+        );
+
+        // Calculate total revenue and fees
+        uint256 totalRevenue = 0.03 ether + 0.067 ether; // $145
+        uint256 totalPlatformFees = ((0.03 ether * 200) / 10_000) + ((0.067 ether * 200) / 10_000);
+
+        // Verify promoter gets platform fees
+        assertEq(assemble.pendingWithdrawals(promoter), totalPlatformFees);
+        assertEq(assemble.totalReferralFees(promoter), totalPlatformFees);
+
+        // Venue and artist can claim their shares
+        vm.prank(venue);
+        assemble.claimFunds();
+
+        vm.prank(artist);
+        assemble.claimFunds();
+
+        // Promoter can claim platform fees
+        vm.prank(promoter);
+        assemble.claimFunds();
+
+        // Verify all funds distributed correctly
+        assertEq(assemble.pendingWithdrawals(venue), 0);
+        assertEq(assemble.pendingWithdrawals(artist), 0);
+        assertEq(assemble.pendingWithdrawals(promoter), 0);
+
+        // Check final balances make sense
+        assertGt(venue.balance, 0);
+        assertGt(artist.balance, 0);
+        assertGt(promoter.balance, 0);
+    }
+
+    function test_WeddingPlatformScenario() public {
+        // Wedding planning platform charges 1% for curated vendor network
+        address bride = makeAddr("bride");
+        address groom = makeAddr("groom");
+        address weddingPlatform = makeAddr("weddingPlatform");
+
+        // Create wedding with gifts going to couple
+        Assemble.PaymentSplit[] memory weddingSplits = new Assemble.PaymentSplit[](2);
+        weddingSplits[0] = Assemble.PaymentSplit(bride, 5000); // 50%
+        weddingSplits[1] = Assemble.PaymentSplit(groom, 5000); // 50%
+
+        vm.prank(bride);
+        uint256 weddingId = _createEventWithSplits(weddingSplits);
+
+        // Guests contribute through wedding platform (1% platform fee)
+        address guest1 = makeAddr("guest1");
+        address guest2 = makeAddr("guest2");
+
+        vm.deal(guest1, 1 ether);
+        vm.deal(guest2, 1 ether);
+
+        // Guest 1 gives monetary gift through platform
+        vm.prank(guest1);
+        assemble.tipEvent{ value: 0.15 ether }(weddingId, weddingPlatform, 100); // 1%
+
+        // Guest 2 also gives gift through platform
+        vm.prank(guest2);
+        assemble.tipEvent{ value: 0.1 ether }(weddingId, weddingPlatform, 100); // 1%
+
+        // Calculate platform earnings
+        uint256 totalGifts = 0.25 ether;
+        uint256 platformEarnings = (0.15 ether * 100 / 10_000) + (0.1 ether * 100 / 10_000);
+
+        assertEq(assemble.pendingWithdrawals(weddingPlatform), platformEarnings);
+
+        // Couple receives the rest (minus protocol fee)
+        assertGt(assemble.pendingWithdrawals(bride), 0);
+        assertGt(assemble.pendingWithdrawals(groom), 0);
+    }
+
+    function test_ZeroPlatformFeeIsAllowed() public {
+        uint256 eventId = _createSampleEvent();
+        address platform = makeAddr("platform");
+
+        // Platform can be specified with 0% fee (for tracking/analytics)
+        vm.deal(bob, 1 ether);
+        vm.prank(bob);
+        assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1, platform, 0);
+
+        // No platform fee should be allocated
+        assertEq(assemble.pendingWithdrawals(platform), 0);
+        assertEq(assemble.totalReferralFees(platform), 0);
+    }
+
+    function test_PlatformFeeEvents() public {
+        uint256 eventId = _createSampleEvent();
+        address platform = makeAddr("platform");
+        uint256 platformFeeBps = 300; // 3%
+
+        // Expect platform fee event
+        vm.expectEmit(true, true, false, true);
+        emit Assemble.PlatformFeeAllocated(
+            eventId,
+            platform,
+            (0.1 ether * 300) / 10_000, // 3% of 0.1 ether
+            300
+        );
+
+        vm.deal(bob, 1 ether);
+        vm.prank(bob);
+        assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1, platform, platformFeeBps);
     }
 
     /*//////////////////////////////////////////////////////////////

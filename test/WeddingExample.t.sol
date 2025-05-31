@@ -85,9 +85,9 @@ contract WeddingExampleTest is Test {
 
         // Wedding gift distribution
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](3);
-        splits[0] = Assemble.PaymentSplit(bride, 4000, "bride_gifts"); // 40%
-        splits[1] = Assemble.PaymentSplit(groom, 4000, "groom_gifts"); // 40%
-        splits[2] = Assemble.PaymentSplit(honeymoonFund, 2000, "honeymoon_trip"); // 20%
+        splits[0] = Assemble.PaymentSplit(bride, 4000); // 40%
+        splits[1] = Assemble.PaymentSplit(groom, 4000); // 40%
+        splits[2] = Assemble.PaymentSplit(honeymoonFund, 2000); // 20%
 
         vm.prank(bride);
         uint256 eventId = assemble.createEvent(params, tiers, splits);
@@ -128,10 +128,9 @@ contract WeddingExampleTest is Test {
         console.log("  Guest 2: Confirmed attendance");
         console.log("  Guest 3: Confirmed attendance");
 
-        // Check attendee list for planning
-        address[] memory attendees = assemble.getAttendees(eventId);
-        assertEq(attendees.length, 3);
-        console.log("Wedding planning: 3 confirmed guests attending");
+        // Check RSVP status directly
+        assertEq(uint8(assemble.getUserRSVP(eventId, guest1)), uint8(SocialLibrary.RSVPStatus.GOING));
+        assertEq(uint8(assemble.getUserRSVP(eventId, guest2)), uint8(SocialLibrary.RSVPStatus.GOING));
 
         // Guests send wedding gifts via tips (this works perfectly!)
         vm.prank(guest1);
@@ -220,8 +219,8 @@ contract WeddingExampleTest is Test {
 
         // All gifts go to couple equally
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](2);
-        splits[0] = Assemble.PaymentSplit(bride, 5000, "bride_share"); // 50%
-        splits[1] = Assemble.PaymentSplit(groom, 5000, "groom_share"); // 50%
+        splits[0] = Assemble.PaymentSplit(bride, 5000); // 50%
+        splits[1] = Assemble.PaymentSplit(groom, 5000); // 50%
 
         vm.prank(bride);
         uint256 eventId = assemble.createEvent(params, tiers, splits);

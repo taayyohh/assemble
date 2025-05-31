@@ -85,10 +85,10 @@ contract ProtestExampleTest is Test {
 
         // Cause-focused payment splits
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](4);
-        splits[0] = Assemble.PaymentSplit(organization, 4000, "environmental_org"); // 40%
-        splits[1] = Assemble.PaymentSplit(legalFund, 3000, "legal_observers"); // 30%
-        splits[2] = Assemble.PaymentSplit(mutualAid, 2000, "community_support"); // 20%
-        splits[3] = Assemble.PaymentSplit(activist, 1000, "organizing_costs"); // 10%
+        splits[0] = Assemble.PaymentSplit(organization, 4000); // 40%
+        splits[1] = Assemble.PaymentSplit(legalFund, 3000); // 30%
+        splits[2] = Assemble.PaymentSplit(mutualAid, 2000); // 20%
+        splits[3] = Assemble.PaymentSplit(activist, 1000); // 10%
 
         vm.prank(activist);
         uint256 eventId = assemble.createEvent(params, tiers, splits);
@@ -140,15 +140,13 @@ contract ProtestExampleTest is Test {
         vm.prank(supporter3);
         assemble.addFriend(supporter2);
 
-        // Supporters invite more people
+        // Organizer invites friends to join the cause
         address[] memory invitees = new address[](2);
-        invitees[0] = supporter2;
-        invitees[1] = supporter3;
+        invitees[0] = supporter1;
+        invitees[1] = supporter2;
 
-        vm.prank(supporter1);
-        assemble.inviteFriends(eventId, invitees);
-
-        console.log("Grassroots organizing: supporters inviting friends");
+        // Note: inviteFriends function removed for bytecode optimization
+        // Friend invitation validation can be done client-side
 
         // Additional donations for the cause
         vm.prank(supporter1);
@@ -238,9 +236,9 @@ contract ProtestExampleTest is Test {
         address defenseCoalition = makeAddr("defenseCoalition");
 
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](3);
-        splits[0] = Assemble.PaymentSplit(bailFund, 5000, "bail_fund"); // 50%
-        splits[1] = Assemble.PaymentSplit(communityOrg, 3000, "community_org"); // 30%
-        splits[2] = Assemble.PaymentSplit(defenseCoalition, 2000, "legal_defense"); // 20%
+        splits[0] = Assemble.PaymentSplit(bailFund, 5000); // 50%
+        splits[1] = Assemble.PaymentSplit(communityOrg, 3000); // 30%
+        splits[2] = Assemble.PaymentSplit(defenseCoalition, 2000); // 20%
 
         vm.prank(activist);
         uint256 eventId = assemble.createEvent(params, tiers, splits);
@@ -289,8 +287,8 @@ contract ProtestExampleTest is Test {
 
         // Community-first splits
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](2);
-        splits[0] = Assemble.PaymentSplit(mutualAid, 8000, "emergency_fund"); // 80%
-        splits[1] = Assemble.PaymentSplit(activist, 2000, "organizing_materials"); // 20%
+        splits[0] = Assemble.PaymentSplit(mutualAid, 8000); // 80%
+        splits[1] = Assemble.PaymentSplit(activist, 2000); // 20%
 
         vm.prank(activist);
         uint256 eventId = assemble.createEvent(params, tiers, splits);

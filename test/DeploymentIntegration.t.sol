@@ -81,8 +81,8 @@ contract DeploymentIntegrationTest is Test {
 
         // Payment goes to birthday person and venue
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](2);
-        splits[0] = Assemble.PaymentSplit(organizer, 8000, "birthday_person"); // 80%
-        splits[1] = Assemble.PaymentSplit(venue, 2000, "venue"); // 20%
+        splits[0] = Assemble.PaymentSplit(organizer, 8000); // 80%
+        splits[1] = Assemble.PaymentSplit(venue, 2000); // 20%
 
         vm.prank(organizer);
         uint256 eventId = assemble.createEvent(params, tiers, splits);
@@ -108,9 +108,9 @@ contract DeploymentIntegrationTest is Test {
         vm.prank(attendee2);
         assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
-        address[] memory attendees = assemble.getAttendees(eventId);
-        assertEq(attendees.length, 2);
-        console.log("RSVPs:", attendees.length);
+        // Check RSVP status directly instead of using getAttendees
+        assertEq(uint8(assemble.getUserRSVP(eventId, attendee1)), uint8(SocialLibrary.RSVPStatus.GOING));
+        assertEq(uint8(assemble.getUserRSVP(eventId, attendee2)), uint8(SocialLibrary.RSVPStatus.GOING));
 
         // 3. Ticket purchases with different scenarios
         console.log("3. Purchasing tickets...");
@@ -210,7 +210,7 @@ contract DeploymentIntegrationTest is Test {
         uint256 badgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
 
         vm.prank(attendee1);
-        vm.expectRevert(abi.encodeWithSignature("SoulboundToken()"));
+        vm.expectRevert(abi.encodeWithSignature("Soulbound()"));
         assemble.transfer(attendee1, attendee2, badgeId, 1);
 
         console.log("Soulbound tokens properly restricted");
@@ -224,7 +224,7 @@ contract DeploymentIntegrationTest is Test {
 
         // Only fee recipient can update protocol settings
         vm.prank(organizer);
-        vm.expectRevert(abi.encodeWithSignature("NotAuthorized()"));
+        vm.expectRevert(abi.encodeWithSignature("NotAuth()"));
         assemble.setProtocolFee(100);
 
         // Deployer can update
@@ -301,7 +301,7 @@ contract DeploymentIntegrationTest is Test {
         });
 
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](1);
-        splits[0] = Assemble.PaymentSplit(organizer, 10_000, "organizer");
+        splits[0] = Assemble.PaymentSplit(organizer, 10_000);
 
         vm.prank(organizer);
         return assemble.createEvent(params, tiers, splits);

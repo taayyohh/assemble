@@ -56,9 +56,9 @@ contract BirthdayExampleTest is Test {
 
         // Payment split: Birthday person gets most tips, organizer gets thank you amount
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](3);
-        splits[0] = Assemble.PaymentSplit(birthdayPerson, 7000, "birthday_person"); // 70% to birthday person
-        splits[1] = Assemble.PaymentSplit(organizer, 2000, "organizer_thanks"); // 20% thank you to organizer
-        splits[2] = Assemble.PaymentSplit(venue, 1000, "venue"); // 10% to venue
+        splits[0] = Assemble.PaymentSplit(birthdayPerson, 7000); // 70% to birthday person
+        splits[1] = Assemble.PaymentSplit(organizer, 2000); // 20% thank you to organizer
+        splits[2] = Assemble.PaymentSplit(venue, 1000); // 10% to venue
 
         vm.prank(organizer);
         uint256 eventId = assemble.createEvent(params, tiers, splits);
@@ -120,21 +120,21 @@ contract BirthdayExampleTest is Test {
 
         // Example 1: All tips go to birthday person (0% to organizer)
         Assemble.PaymentSplit[] memory splits1 = new Assemble.PaymentSplit[](1);
-        splits1[0] = Assemble.PaymentSplit(birthdayPerson, 10_000, "birthday_person"); // 100%
+        splits1[0] = Assemble.PaymentSplit(birthdayPerson, 10_000); // 100%
 
         // Example 2: Split between birthday person and charity
         address charity = makeAddr("charity");
         Assemble.PaymentSplit[] memory splits2 = new Assemble.PaymentSplit[](2);
-        splits2[0] = Assemble.PaymentSplit(birthdayPerson, 5000, "birthday_person"); // 50%
-        splits2[1] = Assemble.PaymentSplit(charity, 5000, "charity_donation"); // 50%
+        splits2[0] = Assemble.PaymentSplit(birthdayPerson, 5000); // 50%
+        splits2[1] = Assemble.PaymentSplit(charity, 5000); // 50%
 
         // Example 3: Complex multi-recipient split
         address band = makeAddr("band");
         Assemble.PaymentSplit[] memory splits3 = new Assemble.PaymentSplit[](4);
-        splits3[0] = Assemble.PaymentSplit(birthdayPerson, 4000, "birthday_person"); // 40%
-        splits3[1] = Assemble.PaymentSplit(band, 3000, "live_music"); // 30%
-        splits3[2] = Assemble.PaymentSplit(venue, 2000, "venue"); // 20%
-        splits3[3] = Assemble.PaymentSplit(organizer, 1000, "organizer"); // 10%
+        splits3[0] = Assemble.PaymentSplit(birthdayPerson, 4000); // 40%
+        splits3[1] = Assemble.PaymentSplit(band, 3000); // 30%
+        splits3[2] = Assemble.PaymentSplit(venue, 2000); // 20%
+        splits3[3] = Assemble.PaymentSplit(organizer, 1000); // 10%
 
         console.log("Payment split examples:");
         console.log("1. 100% to birthday person");
@@ -175,7 +175,7 @@ contract BirthdayExampleTest is Test {
         });
 
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](1);
-        splits[0] = Assemble.PaymentSplit(birthdayPerson, 10_000, "birthday_person");
+        splits[0] = Assemble.PaymentSplit(birthdayPerson, 10_000);
 
         vm.prank(organizer);
         uint256 eventId = assemble.createEvent(params, tiers, splits);

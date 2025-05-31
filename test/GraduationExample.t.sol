@@ -72,9 +72,9 @@ contract GraduationExampleTest is Test {
 
         // Payment splits: Most goes to scholarship fund
         Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](3);
-        splits[0] = Assemble.PaymentSplit(scholarshipFund, 7000, "scholarship_fund"); // 70%
-        splits[1] = Assemble.PaymentSplit(school, 2000, "school_programs"); // 20%
-        splits[2] = Assemble.PaymentSplit(venue, 1000, "venue_costs"); // 10%
+        splits[0] = Assemble.PaymentSplit(scholarshipFund, 7000); // 70%
+        splits[1] = Assemble.PaymentSplit(school, 2000); // 20%
+        splits[2] = Assemble.PaymentSplit(venue, 1000); // 10%
 
         vm.prank(school);
         uint256 eventId = assemble.createEvent(params, tiers, splits);
