@@ -8,6 +8,7 @@ A singleton smart contract protocol for onchain event management with social coo
 
 - **Event Management** - Multi-tier ticketing with configurable pricing and payment splits
 - **Private Events** - Invite-only events with access control and curated guest lists
+- **Platform Fees** - Optional 0-5% referral fees to incentivize venues, platforms, and ecosystem growth
 - **Social Graph** - Friends, RSVPs, and social discovery with onchain coordination
 - **ERC-6909 Tokens** - Transferrable event tickets and soulbound attendance badges
 - **Transient Storage** - Gas-optimized operations using EIP-1153 for batch processing
@@ -58,7 +59,19 @@ forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast
 ### Core Functions
 ```solidity
 function createEvent(EventParams calldata params, TicketTier[] calldata tiers, PaymentSplit[] calldata splits) external returns (uint256 eventId)
+
+// Basic ticket purchase
 function purchaseTickets(uint256 eventId, uint256 tierId, uint256 quantity) external payable
+
+// Ticket purchase with platform fee (0-5%)
+function purchaseTickets(uint256 eventId, uint256 tierId, uint256 quantity, address referrer, uint256 platformFeeBps) external payable
+
+// Basic event tip
+function tipEvent(uint256 eventId) external payable
+
+// Event tip with platform fee (0-5%)
+function tipEvent(uint256 eventId, address referrer, uint256 platformFeeBps) external payable
+
 function cancelEvent(uint256 eventId) external
 function checkIn(uint256 eventId) external
 function checkInWithTicket(uint256 eventId, uint256 ticketTokenId) external
@@ -118,14 +131,39 @@ assemble.inviteToEvent(eventId, guests);
 - VIP product launches
 - Community gatherings with controlled access
 
+## Platform Fees & Ecosystem Incentives
+
+Platform fees (0-5%) enable sustainable ecosystem growth by incentivizing venues, platforms, and service providers:
+
+```solidity
+// Music venue gets 2% for hosting
+assemble.purchaseTickets{value: ticketPrice}(eventId, 0, 1, venueAddress, 200);
+
+// Event platform gets 1.5% for promotion  
+assemble.tipEvent{value: tipAmount}(eventId, platformAddress, 150);
+```
+
+**Perfect for:**
+- **Music venues** earning fees for hosting events
+- **Event platforms** monetizing discovery and promotion
+- **Influencer partnerships** with revenue sharing
+- **Corporate sponsors** tracking ROI on event investments
+- **Community builders** sustaining long-term operations
+
+**Key Benefits:**
+- Self-referral prevention ensures legitimate partnerships
+- Transparent on-chain fee tracking builds trust
+- Compatible with existing payment splits
+- Encourages organic ecosystem development
+
 ## Security
 
-- **126 comprehensive tests** with fuzz and invariant testing
+- **139 comprehensive tests** with fuzz and invariant testing
 - **Static analysis** clean (Slither, zero security issues)
 - **EIP-1153 reentrancy protection** via transient storage guards
 - **Pull payment pattern** for secure fund distribution
 - **Soulbound token enforcement** prevents credential transfer
-- **Gas-optimized** contract under 24KB limit (23,816 bytes runtime)
+- **Gas-optimized** contract under 24KB limit (24,034 bytes runtime)
 
 ⚠️ **This protocol has not been audited. Use at your own risk.**
 
@@ -133,18 +171,18 @@ assemble.inviteToEvent(eventId, guests);
 
 | Operation | Gas |
 |-----------|-----|
-| Create Event | 538,611 |
-| Purchase Tickets | 221,345 |
-| Private Invitations | 78,968 |
-| Check-in Operations | 74,163 |
-| Social Operations | 33,080 - 91,663 |
+| Create Event | 495,398 |
+| Purchase Tickets | 541,107 |
+| Private Invitations | 90,746 |
+| Check-in Operations | 582,115 |
+| Social Operations | 75,673 - 169,672 |
 
 ## Testing Coverage
 
-- **32** core functionality tests
+- **40** core functionality tests
 - **17** security tests  
-- **23** edge case tests
-- **9** fuzz tests (1000 runs each)
+- **22** edge case tests
+- **15** fuzz tests (1000 runs each)
 - **8** invariant tests (256 runs each)
 - **25** real-world scenario tests
 - **12** private event tests

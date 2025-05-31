@@ -304,12 +304,6 @@ contract Assemble {
         }
     }
 
-    /// @notice Only event organizer modifier
-    modifier onlyOrganizer(uint256 eventId) {
-        if (eventOrganizers[eventId] != msg.sender) revert NotOrganizer();
-        _;
-    }
-
     /// @notice Only fee recipient modifier
     modifier onlyFeeTo() {
         if (msg.sender != feeTo) revert NotAuth();
@@ -364,7 +358,7 @@ contract Assemble {
             capacity: uint32(params.capacity),
             venueId: uint16(params.venueId),
             visibility: uint8(params.visibility),
-            status: uint8(EventStatus.ACTIVE)
+            status: 0 // ACTIVE = 0, avoid enum cast
         });
 
         // Store metadata and organizer
@@ -453,7 +447,7 @@ contract Assemble {
 
         // Check event visibility and access permissions
         if (
-            EventVisibility(events[eventId].visibility) == EventVisibility.INVITE_ONLY
+            events[eventId].visibility == 2 // INVITE_ONLY
                 && !eventInvites[eventId][msg.sender]
         ) {
             revert NotInvited();
@@ -660,31 +654,34 @@ contract Assemble {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Invite users to a private event
-    /// @param eventId Event identifier
+    /// @param eventId Event to invite users to
     /// @param invitees Array of addresses to invite
-    function inviteToEvent(uint256 eventId, address[] calldata invitees) external onlyOrganizer(eventId) {
-        if (events[eventId].startTime == 0) revert NoEvent();
-        if (EventVisibility(events[eventId].visibility) != EventVisibility.INVITE_ONLY) revert NotPrivate();
+    function inviteToEvent(uint256 eventId, address[] calldata invitees) external {
+        if (eventOrganizers[eventId] != msg.sender) revert NotOrganizer();
+        if (events[eventId].visibility != 2) revert NotPrivate(); // INVITE_ONLY = 2
 
-        for (uint256 i = 0; i < invitees.length; i++) {
-            if (invitees[i] == address(0)) revert BadAddr();
-            if (eventInvites[eventId][invitees[i]]) revert AlreadyInvited();
+        uint256 inviteesLength = invitees.length;
+        for (uint256 i = 0; i < inviteesLength;) {
+            address invitee = invitees[i];
+            if (eventInvites[eventId][invitee]) revert AlreadyInvited();
 
-            eventInvites[eventId][invitees[i]] = true;
+            eventInvites[eventId][invitee] = true;
+            emit UserInvited(eventId, invitee, msg.sender);
 
-            emit UserInvited(eventId, invitees[i], msg.sender);
+            unchecked {
+                ++i;
+            }
         }
     }
 
     /// @notice Remove invitation from a private event
-    /// @param eventId Event identifier
-    /// @param invitee Address to remove invitation from
-    function removeInvitation(uint256 eventId, address invitee) external onlyOrganizer(eventId) {
-        if (events[eventId].startTime == 0) revert NoEvent();
+    /// @param eventId Event to remove invitation from
+    /// @param invitee Address to remove invitation for
+    function removeInvitation(uint256 eventId, address invitee) external {
+        if (eventOrganizers[eventId] != msg.sender) revert NotOrganizer();
         if (!eventInvites[eventId][invitee]) revert NotInvited();
 
         eventInvites[eventId][invitee] = false;
-
         emit InvitationRevoked(eventId, invitee, msg.sender);
     }
 
@@ -941,21 +938,16 @@ contract Assemble {
                     EVENT CANCELLATION & REFUNDS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Cancel an event and enable refunds
+    /// @notice Cancel event and enable refunds
     /// @param eventId Event to cancel
-    /// @dev Only organizer can cancel before event starts
-    function cancelEvent(uint256 eventId) external onlyOrganizer(eventId) nonReentrant {
-        if (events[eventId].startTime == 0) revert NoEvent();
-        if (events[eventId].status != uint8(EventStatus.ACTIVE)) revert NotActive();
+    function cancelEvent(uint256 eventId) external {
+        if (eventOrganizers[eventId] != msg.sender) revert NotOrganizer();
+        if (events[eventId].status != 0) revert NotActive(); // 0 = ACTIVE
         if (block.timestamp >= events[eventId].startTime) revert Started();
-        if (eventCancelled[eventId]) revert Cancelled();
 
-        // Mark event as cancelled
-        events[eventId].status = uint8(EventStatus.CANCELLED);
-        eventCancelled[eventId] = true;
-
-        // Set cancellation timestamp
+        events[eventId].status = 1; // CANCELLED = 1
         eventCancellationTime[eventId] = block.timestamp;
+        eventCancelled[eventId] = true;
 
         emit EventCancelled(eventId, msg.sender, block.timestamp);
     }
