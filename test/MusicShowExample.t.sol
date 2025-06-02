@@ -34,13 +34,15 @@ contract MusicShowExampleTest is Test {
 
         // Create concert event
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "The Midnight Echoes - World Tour",
-            description: "Indie rock sensation live! Meet & greet, signed merch, and unforgettable music.",
-            imageUri: "ipfs://midnight-echoes-tour",
+            title: "Indie Folk Night at The Hollow",
+            description: "An intimate evening of acoustic performances featuring local and touring acts",
+            imageUri: "QmMusicShowImage",
             startTime: block.timestamp + 14 days,
             endTime: block.timestamp + 14 days + 4 hours,
-            capacity: 1000,
-            venueId: 1,
+            capacity: 120,
+            latitude: 404074000, // NYC: 40.4074 * 1e7
+            longitude: -740020000, // NYC: -74.0020 * 1e7
+            venueName: "The Hollow Music Venue",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
@@ -195,7 +197,9 @@ contract MusicShowExampleTest is Test {
             startTime: block.timestamp + 30 days,
             endTime: block.timestamp + 33 days,
             capacity: 5000,
-            venueId: 1,
+            latitude: 340522000, // LA: 34.0522 * 1e7
+            longitude: -1181243000, // LA: -118.1243 * 1e7
+            venueName: "SoundWave Festival Grounds",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 

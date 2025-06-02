@@ -34,13 +34,15 @@ contract ProtestExampleTest is Test {
 
         // Create protest event
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "March for Climate Justice",
-            description: "Join us in demanding immediate action on climate change. Our future depends on it!",
-            imageUri: "ipfs://climate-march",
-            startTime: block.timestamp + 14 days,
-            endTime: block.timestamp + 14 days + 4 hours,
-            capacity: 10_000, // Large public gathering
-            venueId: 1,
+            title: "Climate Action Rally",
+            description: "Join us in demanding immediate action on climate change! Peaceful demonstration for our planet's future.",
+            imageUri: "QmClimateRallyImage",
+            startTime: block.timestamp + 7 days,
+            endTime: block.timestamp + 7 days + 4 hours,
+            capacity: 5000,
+            latitude: 389037000, // DC: 38.9037 * 1e7
+            longitude: -770223000, // DC: -77.0223 * 1e7
+            venueName: "National Mall",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
@@ -173,7 +175,7 @@ contract ProtestExampleTest is Test {
         console.log("  Mutual aid:", mutualAidFunding);
 
         // Protest day participation
-        vm.warp(block.timestamp + 14 days);
+        vm.warp(block.timestamp + 7 days + 1 hours); // Event started 1 hour ago
 
         uint256 ticket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
         vm.prank(supporter1);
@@ -190,13 +192,15 @@ contract ProtestExampleTest is Test {
 
         // Social justice event
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "Rally for Justice and Equality",
-            description: "Stand up for justice! Peaceful assembly demanding systemic change.",
-            imageUri: "ipfs://justice-rally",
-            startTime: block.timestamp + 7 days,
-            endTime: block.timestamp + 7 days + 3 hours,
-            capacity: 5000,
-            venueId: 1,
+            title: "Community Safety Forum",
+            description: "Open discussion about improving safety and police accountability in our neighborhood",
+            imageUri: "QmSafetyForumImage",
+            startTime: block.timestamp + 14 days,
+            endTime: block.timestamp + 14 days + 3 hours,
+            capacity: 200,
+            latitude: 404052000, // NYC: 40.4052 * 1e7
+            longitude: -739979000, // NYC: -73.9979 * 1e7
+            venueName: "Community Center",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
@@ -254,13 +258,15 @@ contract ProtestExampleTest is Test {
 
         // Mutual aid organizing event
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "Community Care Resource Fair",
-            description: "Connecting neighbors, sharing resources, building mutual aid networks.",
-            imageUri: "ipfs://mutual-aid",
-            startTime: block.timestamp + 3 days,
-            endTime: block.timestamp + 3 days + 6 hours,
-            capacity: 500,
-            venueId: 1,
+            title: "Workers Rights March",
+            description: "Standing together for fair wages, safe working conditions, and workers' dignity",
+            imageUri: "QmWorkersRightsImage",
+            startTime: block.timestamp + 21 days,
+            endTime: block.timestamp + 21 days + 5 hours,
+            capacity: 3000,
+            latitude: 377826000, // SF: 37.7826 * 1e7
+            longitude: -1224241000, // SF: -122.4241 * 1e7
+            venueName: "Union Square",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 

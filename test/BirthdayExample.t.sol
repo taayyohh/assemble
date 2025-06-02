@@ -32,14 +32,16 @@ contract BirthdayExampleTest is Test {
 
         // 1. Organizer creates birthday party with custom payment splits
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "Bob's 30th Birthday Bash!",
-            description: "Celebrating Bob's milestone birthday - tips go to Bob!",
-            imageUri: "ipfs://birthday-party",
-            startTime: block.timestamp + 1 days,
-            endTime: block.timestamp + 2 days,
-            capacity: 50,
-            venueId: 1,
-            visibility: Assemble.EventVisibility.PUBLIC
+            title: "Surprise Birthday Party",
+            description: "John's 30th surprise birthday celebration with cake, music, and fun!",
+            imageUri: "QmbWqxBEKC3P8tqsKc98xmWNzrzDtRLMiMPL8wBuTGsMnR",
+            startTime: block.timestamp + 7 days,
+            endTime: block.timestamp + 7 days + 4 hours,
+            capacity: 25,
+            latitude: 404052000, // NYC: 40.4052 * 1e7
+            longitude: -739979000, // NYC: -73.9979 * 1e7
+            venueName: "Madison Square Park",
+            visibility: Assemble.EventVisibility.PRIVATE
         });
 
         // Free party with payment splits directing tips to birthday person
@@ -153,13 +155,15 @@ contract BirthdayExampleTest is Test {
 
         // Create birthday event
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "Sarah's 25th Birthday Bash!",
-            description: "Come celebrate with cake, music, and great friends!",
-            imageUri: "ipfs://birthday-bash",
-            startTime: block.timestamp + 5 days,
-            endTime: block.timestamp + 5 days + 6 hours,
-            capacity: 30,
-            venueId: 1,
+            title: "Birthday Follow-up Event",
+            description: "Follow-up celebration",
+            imageUri: "QmbWqxBEKC3P8tqsKc98xmWNzrzDtRLMiMPL8wBuTGsMnR",
+            startTime: block.timestamp + 14 days,
+            endTime: block.timestamp + 14 days + 3 hours,
+            capacity: 15,
+            latitude: 404052000,
+            longitude: -739979000,
+            venueName: "Central Park",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 

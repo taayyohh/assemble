@@ -118,7 +118,7 @@ contract InvariantTests is StdInvariant, Test {
         
         for (uint256 i = 0; i < allEventIds.length; i++) {
             uint256 eventId = allEventIds[i];
-            (,, uint32 capacity,,,) = assemble.events(eventId);
+            (,, uint64 startTime, uint32 capacity,,,,,,,) = assemble.events(eventId);
             
             // Sum all ticket tiers sold
             uint256 totalSold = 0;
@@ -243,7 +243,9 @@ contract AssembleHandler is Test {
             startTime: block.timestamp + startTimeOffset,
             endTime: block.timestamp + startTimeOffset + 1 days,
             capacity: capacity,
-            venueId: 1,
+            latitude: 404052000, // NYC: 40.4052 * 1e7
+            longitude: -739979000, // NYC: -73.9979 * 1e7
+            venueName: "Handler Test Venue",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 

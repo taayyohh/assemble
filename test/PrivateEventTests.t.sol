@@ -39,7 +39,7 @@ contract PrivateEventTests is Test {
 
     function test_CreateInviteOnlyEvent() public {
         // Verify event was created with correct visibility
-        (,,,, uint8 visibility,) = assemble.events(privateEventId);
+        (,,,,,, uint8 visibility,,,,) = assemble.events(privateEventId);
         assertEq(visibility, uint8(Assemble.EventVisibility.INVITE_ONLY));
         assertEq(assemble.eventOrganizers(privateEventId), organizer);
     }
@@ -187,13 +187,15 @@ contract PrivateEventTests is Test {
 
         // Create exclusive art show
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "Emerging Artists Showcase - Private Opening",
-            description: "Exclusive first look at breakthrough contemporary artists",
-            imageUri: "ipfs://art-gallery-exclusive",
-            startTime: block.timestamp + 7 days,
-            endTime: block.timestamp + 7 days + 3 hours,
+            title: "Exclusive Art Gallery Opening",
+            description: "Private viewing of contemporary art collection",
+            imageUri: "QmArtGalleryImage",
+            startTime: block.timestamp + 14 days,
+            endTime: block.timestamp + 14 days + 3 hours,
             capacity: 50,
-            venueId: 1,
+            latitude: 407589000, // NYC: 40.7589 * 1e7
+            longitude: -739929000, // NYC: -73.9929 * 1e7
+            venueName: "Private Art Gallery",
             visibility: Assemble.EventVisibility.INVITE_ONLY
         });
 
@@ -271,13 +273,15 @@ contract PrivateEventTests is Test {
 
     function _createPrivateEvent() internal returns (uint256 eventId) {
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "Private Event",
-            description: "Invite-only private gathering",
-            imageUri: "ipfs://private-event",
-            startTime: block.timestamp + 1 days,
-            endTime: block.timestamp + 2 days,
-            capacity: 50,
-            venueId: 1,
+            title: "Private Birthday Party",
+            description: "Exclusive birthday celebration for close friends and family",
+            imageUri: "QmPrivateBirthdayImage",
+            startTime: block.timestamp + 7 days,
+            endTime: block.timestamp + 7 days + 4 hours,
+            capacity: 30,
+            latitude: 404052000, // NYC: 40.4052 * 1e7
+            longitude: -739979000, // NYC: -73.9979 * 1e7
+            venueName: "Private Residence",
             visibility: Assemble.EventVisibility.INVITE_ONLY
         });
 
@@ -301,13 +305,15 @@ contract PrivateEventTests is Test {
 
     function _createPublicEvent() internal returns (uint256 eventId) {
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "Public Event",
-            description: "Open to everyone",
-            imageUri: "ipfs://public-event",
-            startTime: block.timestamp + 1 days,
-            endTime: block.timestamp + 2 days,
-            capacity: 100,
-            venueId: 1,
+            title: "Corporate Board Meeting",
+            description: "Quarterly board meeting for company stakeholders",
+            imageUri: "QmBoardMeetingImage",
+            startTime: block.timestamp + 21 days,
+            endTime: block.timestamp + 21 days + 2 hours,
+            capacity: 15,
+            latitude: 407614000, // NYC: 40.7614 * 1e7
+            longitude: -739960000, // NYC: -73.9960 * 1e7
+            venueName: "Corporate Boardroom",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 

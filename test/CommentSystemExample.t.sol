@@ -260,13 +260,15 @@ contract CommentSystemExampleTest is Test {
     // Helper functions
     function _createTestEvent() internal returns (uint256) {
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "Birthday Party with Comments",
-            description: "Testing our new comment system!",
-            imageUri: "ipfs://birthday-party",
+            title: "Community Tech Meetup",
+            description: "Monthly gathering for local developers and tech enthusiasts",
+            imageUri: "QmTechMeetupImage",
             startTime: block.timestamp + 7 days,
-            endTime: block.timestamp + 7 days + 4 hours,
-            capacity: 50,
-            venueId: 1,
+            endTime: block.timestamp + 7 days + 3 hours,
+            capacity: 100,
+            latitude: 377826000, // SF: 37.7826 * 1e7
+            longitude: -1224241000, // SF: -122.4241 * 1e7
+            venueName: "Tech Hub Coworking Space",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 

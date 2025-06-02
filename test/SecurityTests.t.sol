@@ -357,7 +357,9 @@ contract SecurityTests is Test {
             startTime: block.timestamp + 1 days,
             endTime: block.timestamp + 2 days,
             capacity: 100,
-            venueId: 1,
+            latitude: 377826000, // SF: 37.7826 * 1e7
+            longitude: -1224241000, // SF: -122.4241 * 1e7
+            venueName: "Security Test Venue 2",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
@@ -398,7 +400,9 @@ contract SecurityTests is Test {
             startTime: block.timestamp - 1, // In the past (just 1 second ago to avoid underflow)
             endTime: block.timestamp + 1 days,
             capacity: 100,
-            venueId: 1,
+            latitude: 422390000, // Boston: 42.2390 * 1e7
+            longitude: -711040000, // Boston: -71.1040 * 1e7
+            venueName: "Security Test Venue 3",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
@@ -427,13 +431,15 @@ contract SecurityTests is Test {
 
     function _createEvent(uint256 price, uint256 capacity) internal returns (uint256 eventId) {
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "Security Test Event",
-            description: "Event for security testing",
-            imageUri: "ipfs://security-test",
+            title: "Security Test Event 1",
+            description: "Testing security vulnerabilities",
+            imageUri: "QmSecurityTestImage1",
             startTime: block.timestamp + 1 days,
             endTime: block.timestamp + 2 days,
-            capacity: capacity,
-            venueId: 1,
+            capacity: 100,
+            latitude: 404052000, // NYC: 40.4052 * 1e7
+            longitude: -739979000, // NYC: -73.9979 * 1e7
+            venueName: "Security Test Venue 1",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 

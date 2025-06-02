@@ -5,6 +5,7 @@ import { Test, console } from "forge-std/Test.sol";
 import { Assemble } from "../src/Assemble.sol";
 import { SocialLibrary } from "../src/libraries/SocialLibrary.sol";
 import { CommentLibrary } from "../src/libraries/CommentLibrary.sol";
+import { PaymentLibrary } from "../src/libraries/PaymentLibrary.sol";
 
 /// @title Comprehensive Fuzz Tests for Assemble Protocol
 /// @notice Property-based testing with random inputs to ensure protocol robustness
@@ -57,12 +58,14 @@ contract FuzzTests is Test {
 
         Assemble.EventParams memory params = Assemble.EventParams({
             title: "Fuzz Test Event",
-            description: "Testing with random parameters",
-            imageUri: "ipfs://fuzz-test",
+            description: "Event for fuzz testing",
+            imageUri: "QmFuzzTestImage",
             startTime: startTime,
             endTime: endTime,
             capacity: capacity,
-            venueId: 1,
+            latitude: 404052000, // NYC: 40.4052 * 1e7
+            longitude: -739979000, // NYC: -73.9979 * 1e7
+            venueName: "Fuzz Test Venue",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
@@ -84,7 +87,7 @@ contract FuzzTests is Test {
         uint256 eventId = assemble.createEvent(params, tiers, splits);
 
         // Verify event was created correctly
-        (uint128 basePrice, uint64 storedStartTime, uint32 storedCapacity,,,) = assemble.events(eventId);
+        (uint128 basePrice, uint128 locationData, uint64 storedStartTime, uint32 storedCapacity, uint64 venueHash, uint16 tierCount,,,,,) = assemble.events(eventId);
 
         assertEq(basePrice, tierPrice);
         assertEq(storedStartTime, startTime);
@@ -105,7 +108,9 @@ contract FuzzTests is Test {
             startTime: block.timestamp + 1 days,
             endTime: block.timestamp + 2 days,
             capacity: 100,
-            venueId: 1,
+            latitude: 404052000, // NYC: 40.4052 * 1e7
+            longitude: -739979000, // NYC: -73.9979 * 1e7
+            venueName: "Split Test Venue",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
@@ -325,7 +330,7 @@ contract FuzzTests is Test {
         uint256 eventId = _createFuzzEvent(type(uint128).max, type(uint32).max);
 
         // Should not revert with max values - check by getting event data
-        (, uint64 startTime,,,,) = assemble.events(eventId);
+        (,, uint64 startTime,,,,,,,,) = assemble.events(eventId);
         assertTrue(startTime > 0, "Event should be created with max values");
     }
 
@@ -408,8 +413,8 @@ contract FuzzTests is Test {
 
         // Should revert with fee too high
         vm.prank(bob);
-        vm.expectRevert(Assemble.PlatformHigh.selector);
-        assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1, referrer, platformFeeBps);
+        vm.expectRevert(abi.encodeWithSignature("PlatformHigh()"));
+        assemble.purchaseTickets{value: 0.1 ether}(eventId, 0, 1, referrer, 501);
     }
 
     function testFuzz_PlatformFeeEdgeCases(address referrer, uint256 platformFeeBps) public {
@@ -421,12 +426,12 @@ contract FuzzTests is Test {
 
         // Test self-referral prevention
         vm.prank(referrer);
-        vm.expectRevert(Assemble.BadRef.selector);
+        vm.expectRevert(abi.encodeWithSignature("BadRef()"));
         assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1, referrer, platformFeeBps);
 
         // Test zero address with non-zero fee
         vm.prank(referrer);
-        vm.expectRevert(Assemble.BadRef.selector);
+        vm.expectRevert(abi.encodeWithSignature("BadRef()"));
         assemble.purchaseTickets{ value: 0.1 ether }(eventId, 0, 1, address(0), platformFeeBps);
     }
 
@@ -520,14 +525,19 @@ contract FuzzTests is Test {
     //////////////////////////////////////////////////////////////*/
 
     function _createFuzzEvent(uint256 price, uint256 capacity) internal returns (uint256 eventId) {
+        uint256 startTime = block.timestamp + 1 hours;
+        uint256 endTime = startTime + 1 days;
+        
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "Fuzz Event",
-            description: "Event for fuzz testing",
-            imageUri: "ipfs://fuzz",
-            startTime: block.timestamp + 1 days,
-            endTime: block.timestamp + 2 days,
+            title: "Another Fuzz Event",
+            description: "Second fuzz event",
+            imageUri: "QmFuzzTestImage2",
+            startTime: startTime,
+            endTime: endTime,
             capacity: capacity,
-            venueId: 1,
+            latitude: 377826000, // SF: 37.7826 * 1e7
+            longitude: -1224241000, // SF: -122.4241 * 1e7
+            venueName: "Another Fuzz Venue",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 

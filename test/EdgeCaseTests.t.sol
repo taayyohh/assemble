@@ -41,7 +41,9 @@ contract EdgeCaseTests is Test {
             startTime: block.timestamp + 1 days,
             endTime: block.timestamp + 2 days,
             capacity: maxCapacity,
-            venueId: 1,
+            latitude: 404052000,
+            longitude: -739979000,
+            venueName: "Max Capacity Venue",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
@@ -62,8 +64,8 @@ contract EdgeCaseTests is Test {
         vm.prank(alice);
         uint256 eventId = assemble.createEvent(params, tiers, splits);
 
-        // Verify max capacity was stored correctly
-        (,, uint32 storedCapacity,,,) = assemble.events(eventId);
+        // Verify max capacity was stored correctly (Updated for new PackedEventData)
+        (,, uint64 startTime, uint32 storedCapacity,,,,,,,) = assemble.events(eventId);
         assertEq(storedCapacity, maxCapacity);
     }
 
@@ -106,7 +108,9 @@ contract EdgeCaseTests is Test {
             startTime: block.timestamp + 1 days,
             endTime: block.timestamp + 2 days,
             capacity: 100,
-            venueId: 1,
+            latitude: 404052000,
+            longitude: -739979000,
+            venueName: "Max Splits Venue",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
@@ -156,7 +160,9 @@ contract EdgeCaseTests is Test {
             startTime: farFuture,
             endTime: farFuture + 1 days,
             capacity: 100,
-            venueId: 1,
+            latitude: 404052000,
+            longitude: -739979000,
+            venueName: "Future Venue",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
@@ -191,7 +197,9 @@ contract EdgeCaseTests is Test {
             startTime: startTime,
             endTime: startTime + 1 days,
             capacity: 100,
-            venueId: 1,
+            latitude: 404052000,
+            longitude: -739979000,
+            venueName: "Last Minute Venue",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
@@ -477,7 +485,9 @@ contract EdgeCaseTests is Test {
             startTime: block.timestamp + 1 days,
             endTime: block.timestamp + 2 days,
             capacity: capacity,
-            venueId: 1,
+            latitude: 404052000,
+            longitude: -739979000,
+            venueName: "Edge Case Venue",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 

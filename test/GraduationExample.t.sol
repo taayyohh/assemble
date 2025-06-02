@@ -31,12 +31,14 @@ contract GraduationExampleTest is Test {
         // Create graduation event
         Assemble.EventParams memory params = Assemble.EventParams({
             title: "Class of 2024 Graduation Ceremony",
-            description: "Celebrating our graduates! Donations support future student scholarships.",
-            imageUri: "ipfs://graduation-ceremony",
-            startTime: block.timestamp + 3 days,
-            endTime: block.timestamp + 3 days + 4 hours,
+            description: "Join us as we celebrate the achievements of our graduating class",
+            imageUri: "QmGraduationCeremonyImage",
+            startTime: block.timestamp + 30 days,
+            endTime: block.timestamp + 30 days + 3 hours,
             capacity: 500,
-            venueId: 1,
+            latitude: 422390000, // Boston: 42.2390 * 1e7
+            longitude: -711040000, // Boston: -71.1040 * 1e7
+            venueName: "University Auditorium",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
@@ -104,7 +106,7 @@ contract GraduationExampleTest is Test {
         console.log("Supporting future students education!");
 
         // Verify attendance tracking works for graduation
-        vm.warp(block.timestamp + 3 days);
+        vm.warp(block.timestamp + 30 days + 1 hours); // Event started 1 hour ago
 
         uint256 ticket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
         vm.prank(family1);

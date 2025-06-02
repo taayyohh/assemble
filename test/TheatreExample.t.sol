@@ -30,13 +30,15 @@ contract TheatreExampleTest is Test {
 
         // Create theatre event
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "Shakespeare's Hamlet - Opening Night",
-            description: "A timeless classic performed by our talented local theatre company.",
-            imageUri: "ipfs://hamlet-poster",
-            startTime: block.timestamp + 7 days,
-            endTime: block.timestamp + 7 days + 3 hours,
-            capacity: 200,
-            venueId: 1,
+            title: "Romeo and Juliet - Opening Night",
+            description: "Shakespeare's timeless tragedy performed by the Metropolitan Theatre Company",
+            imageUri: "QmTheatreImage",
+            startTime: block.timestamp + 21 days,
+            endTime: block.timestamp + 21 days + 3 hours,
+            capacity: 300,
+            latitude: 407589000, // NYC: 40.7589 * 1e7
+            longitude: -739929000, // NYC: -73.9929 * 1e7
+            venueName: "Metropolitan Theatre",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
@@ -126,7 +128,7 @@ contract TheatreExampleTest is Test {
         console.log("Director earnings:", directorEarnings);
 
         // Show night attendance
-        vm.warp(block.timestamp + 7 days);
+        vm.warp(block.timestamp + 21 days + 1 hours); // Event started 1 hour ago
 
         // Test both check-in methods
         uint256 gaTicket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 1, 1);
@@ -169,13 +171,15 @@ contract TheatreExampleTest is Test {
 
         // Season pass event
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "2024 Theatre Season Pass",
-            description: "Access to all 8 shows in our 2024 season + exclusive events",
-            imageUri: "ipfs://season-pass",
-            startTime: block.timestamp + 30 days,
-            endTime: block.timestamp + 365 days,
-            capacity: 100,
-            venueId: 1,
+            title: "Community Theatre Workshop",
+            description: "Learn acting, directing, and stagecraft in our hands-on workshop series",
+            imageUri: "QmWorkshopImage",
+            startTime: block.timestamp + 14 days,
+            endTime: block.timestamp + 14 days + 6 hours,
+            capacity: 25,
+            latitude: 407589000, // NYC: 40.7589 * 1e7
+            longitude: -739929000, // NYC: -73.9929 * 1e7
+            venueName: "Community Theatre Studio",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 

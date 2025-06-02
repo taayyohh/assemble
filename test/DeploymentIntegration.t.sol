@@ -45,7 +45,9 @@ contract DeploymentIntegrationTest is Test {
             startTime: block.timestamp + 2 days,
             endTime: block.timestamp + 3 days,
             capacity: 50,
-            venueId: 1,
+            latitude: 404052000, // NYC: 40.4052 * 1e7
+            longitude: -739979000, // NYC: -73.9979 * 1e7
+            venueName: "Alice's Birthday Venue",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
@@ -285,7 +287,9 @@ contract DeploymentIntegrationTest is Test {
             startTime: block.timestamp + 1 days,
             endTime: block.timestamp + 2 days,
             capacity: 100,
-            venueId: 1,
+            latitude: 377826000, // SF: 37.7826 * 1e7
+            longitude: -1224241000, // SF: -122.4241 * 1e7
+            venueName: "Standard Test Venue",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
