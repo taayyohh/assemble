@@ -25,35 +25,37 @@ contract Assemble {
                             CUSTOM ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    // Validation errors (consolidated address/input validation)
-    error BadInput(); // Replaces: BadAddr, BadRef, BadRecipient, BadContent, BadQty, BadCap
+    /// @notice Thrown when input validation fails (addresses, quantities, content, etc.)
+    error BadInput();
     
-    // Timing errors (consolidated time-related errors)  
-    error BadTiming(); // Replaces: BadTime, BadEndTime, BadSaleTimes, NotStarted, Ended, EventOver, NotEventTime
+    /// @notice Thrown when timing constraints are violated (start/end times, sales periods, etc.)
+    error BadTiming();
     
-    // Authorization errors (consolidated permission errors)
-    error NotAuth(); // Keeps existing, replaces: NotOrganizer, NoPerms, WrongOrg
+    /// @notice Thrown when caller lacks required permissions
+    error NotAuth();
     
-    // Supply/capacity errors (consolidated quantity errors)
-    error NoSupply(); // Keeps existing, replaces: NoSpace, NoTiers
+    /// @notice Thrown when requested supply or capacity is unavailable
+    error NoSupply();
     
-    // Payment errors (consolidated fee/payment errors)
-    error BadPayment(); // Replaces: BadBps, BadTotal, FeeHigh, PlatformHigh, NeedMore, NeedValue
+    /// @notice Thrown when payment validation fails (fees, amounts, basis points, etc.)
+    error BadPayment();
     
-    // State errors (consolidated state validation)
-    error BadState(); // Replaces: NotActive, Started, Cancelled, NotCancelled, Used, NotDone, NotExpired
+    /// @notice Thrown when operation is invalid for current state
+    error BadState();
     
-    // Resource errors (consolidated missing resource errors)
-    error NotFound(); // Replaces: NoEvent, NoTier, NoParent, NoSplits, NoTicket, NoFunds, NoRefund
+    /// @notice Thrown when requested resource does not exist
+    error NotFound();
     
-    // Operation errors (consolidated operation failures)
-    error OpFailed(); // Replaces: TransferFail, RefundFail, Expired, Soulbound
+    /// @notice Thrown when operation execution fails
+    error OpFailed();
     
-    // Social errors (consolidated social feature errors)
-    error SocialError(); // Replaces: CantAddSelf, AlreadyFriends, NotFriends, AlreadyInvited, NotInvited, NotPrivate
+    /// @notice Thrown when social interaction constraints are violated
+    error SocialError();
     
-    // Keep essential specific errors that are used frequently
+    /// @notice Thrown when operation exceeds maximum allowed quantity
     error TooMany();
+    
+    /// @notice Thrown when token is not supported for payments
     error UnsupportedToken();
 
     /*//////////////////////////////////////////////////////////////
@@ -109,7 +111,7 @@ contract Assemble {
         COMPLETED
     }
 
-    /// @notice ULTRA-OPTIMIZED storage for events (64 bytes, 2 slots)
+    /// @notice Packed event data structure for gas-efficient storage
     struct PackedEventData {
         // SLOT 1: 32 bytes
         uint128 basePrice;          // 16 bytes: Event base price
@@ -131,25 +133,25 @@ contract Assemble {
     struct EventParams {
         string title;
         string description;
-        string imageUri; // IPFS hash for event image
+        string imageUri;
         uint256 startTime;
         uint256 endTime;
         uint256 capacity;
-        int64 latitude;             // 1e-7 precision (11mm accuracy)
-        int64 longitude;            // 1e-7 precision
-        string venueName;           // Venue name for hash generation
+        int64 latitude;
+        int64 longitude;
+        string venueName;
         EventVisibility visibility;
     }
 
     /// @notice Ticket tier configuration
     struct TicketTier {
-        string name; // "Early Bird", "VIP", "General"
-        uint256 price; // Price in wei
-        uint256 maxSupply; // Maximum tickets for this tier
-        uint256 sold; // Tickets sold so far
-        uint256 startSaleTime; // When this tier becomes available
-        uint256 endSaleTime; // When this tier stops being available
-        bool transferrable; // Whether tickets can be resold
+        string name;
+        uint256 price;
+        uint256 maxSupply;
+        uint256 sold;
+        uint256 startSaleTime;
+        uint256 endSaleTime;
+        bool transferrable;
     }
 
     /// @notice Payment split configuration for revenue distribution
@@ -187,88 +189,106 @@ contract Assemble {
                                 MAPPINGS
     //////////////////////////////////////////////////////////////*/
 
-    // Core event data (keep public for external queries)
+    /// @notice Core event data storage
     mapping(uint256 => PackedEventData) public events;
     mapping(uint256 => address) public eventOrganizers;
     mapping(uint256 => mapping(uint256 => TicketTier)) public ticketTiers;
 
-    // Make most mappings private to save bytecode
+    /// @notice Event metadata and configuration
     mapping(uint256 => string) private eventMetadata;
     mapping(uint256 => PaymentSplit[]) private eventPaymentSplits;
 
-    // Comment system - keep essential ones public
+    /// @notice Comment system storage
     mapping(uint256 => CommentLibrary.Comment) public comments;
     mapping(uint256 => uint256[]) private eventComments;
 
-    // Security: Pull payment pattern
+    /// @notice Pull payment pattern for secure fund distribution
     mapping(address => uint256) public pendingWithdrawals;
 
-    // Social graph - make private except core ones
+    /// @notice Social graph and interaction data
     mapping(address => mapping(address => bool)) public isFriend;
     mapping(address => address[]) private friendLists;
     mapping(uint256 => mapping(address => SocialLibrary.RSVPStatus)) public rsvps;
 
-    // ERC-6909 core storage (keep public for standard compliance)
+    /// @notice ERC-6909 multi-token standard storage
     mapping(address => mapping(uint256 => uint256)) public balanceOf;
     mapping(address => mapping(address => mapping(uint256 => uint256))) public allowance;
     mapping(address => mapping(address => bool)) public isOperator;
     mapping(uint256 => uint256) public totalSupply;
 
-    // Refund tracking - make public for test access
+    /// @notice Refund tracking for cancelled events
     mapping(uint256 => mapping(address => uint256)) public userTicketPayments;
     mapping(uint256 => mapping(address => uint256)) public userTipPayments;
     mapping(uint256 => uint256) private eventCancellationTime;
 
-    // Attendance tracking
+    /// @notice Ticket usage tracking for check-ins
     mapping(uint256 => bool) public usedTickets;
 
-    // Invite system for private events
+    /// @notice Invite system for private events
     mapping(uint256 => mapping(address => bool)) public eventInvites;
 
-    // V2.0 MINIMAL ADDITIONS - Reuse existing patterns for size efficiency
-    
-    /// @notice Venue tracking - reuse totalReferralFees pattern for size efficiency
+    /// @notice Venue tracking and statistics
     mapping(uint64 => uint256) public venueEventCount;
     
-    /// @notice Simple token whitelist - minimal storage
+    /// @notice ERC20 token support whitelist
     mapping(address => bool) public supportedTokens;
 
-    /// @notice ERC20 pending withdrawals - essential for multi-currency
+    /// @notice ERC20 pending withdrawals for multi-currency support
     mapping(address => mapping(address => uint256)) public pendingERC20Withdrawals;
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    // Core protocol events
+    /// @notice Emitted when a new event is created
     event EventCreated(uint256 indexed eventId, address indexed organizer, uint256 startTime);
+    
+    /// @notice Emitted when tickets are purchased
     event TicketPurchased(uint256 indexed eventId, address indexed buyer, uint256 quantity, uint256 price);
+    
+    /// @notice Emitted when funds are claimed from pending withdrawals
     event FundsClaimed(address indexed recipient, uint256 amount);
+    
+    /// @notice Emitted when an event receives a tip
     event EventTipped(uint256 indexed eventId, address indexed tipper, uint256 amount);
 
-    // Comment system events
+    /// @notice Emitted when a comment is posted on an event
     event CommentPosted(uint256 indexed eventId, uint256 indexed commentId, address indexed author, uint256 parentId);
 
-    // Admin events
+    /// @notice Emitted when the fee recipient address is updated
     event FeeToUpdated(address indexed oldFeeTo, address indexed newFeeTo);
+    
+    /// @notice Emitted when the protocol fee is updated
     event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
+    
+    /// @notice Emitted when an event is cancelled
     event EventCancelled(uint256 indexed eventId, address indexed organizer, uint256 timestamp);
+    
+    /// @notice Emitted when a refund is claimed
     event RefundClaimed(uint256 indexed eventId, address indexed user, uint256 amount);
 
-    // Platform fee events
+    /// @notice Emitted when platform fees are allocated to referrers
     event PlatformFeeAllocated(uint256 indexed eventId, address indexed referrer, uint256 amount, uint256 feeBps);
 
-    // ERC-6909 events
+    /// @notice Emitted when tokens are transferred (ERC-6909)
     event Transfer(address indexed caller, address indexed from, address indexed to, uint256 id, uint256 amount);
+    
+    /// @notice Emitted when token allowance is set (ERC-6909)
     event Approval(address indexed owner, address indexed spender, uint256 indexed id, uint256 amount);
+    
+    /// @notice Emitted when operator approval is set (ERC-6909)
     event OperatorSet(address indexed owner, address indexed operator, bool approved);
 
-    // Invite system events
+    /// @notice Emitted when a user is invited to a private event
     event UserInvited(uint256 indexed eventId, address indexed invitee, address indexed organizer);
 
-    // V2.0 events
+    /// @notice Emitted when a venue credential is minted to an organizer
     event VenueCredentialMinted(address indexed organizer, uint64 indexed venueHash);
+    
+    /// @notice Emitted when token support status is updated
     event TokenSupportUpdated(address indexed token, bool supported);
+    
+    /// @notice Emitted when ERC20 funds are claimed from pending withdrawals
     event ERC20FundsClaimed(address indexed user, address indexed token, uint256 amount);
 
     /*//////////////////////////////////////////////////////////////
@@ -328,7 +348,7 @@ contract Assemble {
         if (tiers.length == 0) revert NoSupply();
         if (params.capacity == 0) revert BadPayment();
 
-        // Inline coordinate validation (more efficient than library call)
+        // Validate coordinates
         if (params.latitude < -900000000 || params.latitude > 900000000) revert BadInput();
         if (params.longitude < -1800000000 || params.longitude > 1800000000) revert BadInput();
 
@@ -338,10 +358,10 @@ contract Assemble {
         // Generate event ID
         eventId = nextEventId++;
 
-        // Inline venue hash generation (more efficient than library call)
+        // Generate venue hash
         uint64 venueHash = uint64(uint256(keccak256(abi.encodePacked(params.venueName))));
 
-        // Inline location packing (more efficient than library call)
+        // Pack location data
         uint128 locationData = (uint128(uint64(params.latitude)) << 64) | uint128(uint64(params.longitude));
 
         // Pack event data for gas efficiency
@@ -460,18 +480,16 @@ contract Assemble {
             revert SocialError();
         }
 
-        // INLINE price calculation (eliminating calculatePrice function)
-        uint256 basePrice = tier.price;
-        uint256 totalCost = basePrice * quantity;
-        if (totalCost == 0 && basePrice > 0) totalCost = 1; // Minimum price for paid tickets
+        // Calculate final price
+        uint256 finalPrice = tier.price * quantity;
         
-        if (msg.value < totalCost) revert BadPayment();
+        if (msg.value < finalPrice) revert BadPayment();
 
         // EFFECTS: Update state before external calls
         tier.sold += quantity;
 
         // Track payment for potential refunds
-        userTicketPayments[eventId][msg.sender] += totalCost;
+        userTicketPayments[eventId][msg.sender] += finalPrice;
 
         // Mint ERC-6909 tickets - use unique IDs to avoid collisions
         for (uint256 i = 0; i < quantity;) {
@@ -484,12 +502,12 @@ contract Assemble {
         // Order: Platform fee -> Protocol fee -> Event payment splits
         uint256 platformFee = 0;
         if (referrer != address(0) && platformFeeBps > 0) {
-            platformFee = (totalCost * platformFeeBps) / 10_000;
+            platformFee = (finalPrice * platformFeeBps) / 10_000;
             pendingWithdrawals[referrer] += platformFee;
             emit PlatformFeeAllocated(eventId, referrer, platformFee, platformFeeBps);
         }
 
-        uint256 remainingAmount = totalCost - platformFee;
+        uint256 remainingAmount = finalPrice - platformFee;
         uint256 protocolFee = (remainingAmount * protocolFeeBps) / 10_000;
         uint256 netAmount = remainingAmount - protocolFee;
 
@@ -502,12 +520,12 @@ contract Assemble {
         _distributePayment(eventId, netAmount);
 
         // INTERACTIONS: Refund excess payment last
-        if (msg.value > totalCost) {
-            (bool success,) = payable(msg.sender).call{ value: msg.value - totalCost }("");
+        if (msg.value > finalPrice) {
+            (bool success,) = payable(msg.sender).call{ value: msg.value - finalPrice }("");
             if (!success) revert OpFailed();
         }
 
-        emit TicketPurchased(eventId, msg.sender, quantity, totalCost);
+        emit TicketPurchased(eventId, msg.sender, quantity, finalPrice);
     }
 
     /// @notice Tip an event directly (independent of ticket sales)
@@ -783,7 +801,6 @@ contract Assemble {
     /// @param status New RSVP status
     function updateRSVP(uint256 eventId, SocialLibrary.RSVPStatus status) external {
         if (events[eventId].startTime == 0) revert NotFound();
-        // Inline the simple library call (just one line)
         rsvps[eventId][msg.sender] = status;
     }
 
@@ -856,9 +873,9 @@ contract Assemble {
             revert NotAuth();
         }
 
-        // Inline soulbound check (more efficient than enum cast)
+        // Prevent transfer of soulbound tokens (attendance badges, credentials)
         uint256 tokenType = id >> 248;
-        if (tokenType == 2 || tokenType == 3 || tokenType == 4) revert SocialError(); // ATTENDANCE_BADGE=2, ORGANIZER_CRED=3, VENUE_CRED=4
+        if (tokenType == 2 || tokenType == 3 || tokenType == 4) revert SocialError();
 
         if (msg.sender != from && !isOperator[from][msg.sender]) {
             allowance[from][msg.sender][id] -= amount;
@@ -947,7 +964,11 @@ contract Assemble {
         return friendLists[user];
     }
 
-    // Consolidated price calculation (minimal for test compatibility)
+    /// @notice Calculate ticket price for given quantity
+    /// @param eventId Event identifier
+    /// @param tierId Ticket tier identifier  
+    /// @param quantity Number of tickets
+    /// @return Total price for the tickets
     function calculatePrice(uint256 eventId, uint256 tierId, uint256 quantity) external view returns (uint256) {
         return ticketTiers[eventId][tierId].price * quantity;
     }
