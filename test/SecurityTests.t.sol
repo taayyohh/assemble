@@ -44,7 +44,7 @@ contract SecurityTests is Test {
         assertGt(protocolFunds, 0, "Protocol should have funds");
 
         vm.prank(attacker);
-        vm.expectRevert(abi.encodeWithSignature("NoFunds()"));
+        vm.expectRevert(abi.encodeWithSignature("NotFound()"));
         assemble.claimFunds(); // Should fail - attacker has no pending funds
 
         // Only feeTo can claim protocol funds
@@ -66,16 +66,21 @@ contract SecurityTests is Test {
         assemble.purchaseTickets{ value: price }(eventId, 0, 2);
 
         // Event gets cancelled
-        vm.prank(alice); // Organizer cancels
+        vm.prank(bob); // Not organizer
+        vm.expectRevert(abi.encodeWithSignature("NotAuth()"));
+        assemble.cancelEvent(eventId);
+
+        // Actually cancel the event with organizer
+        vm.prank(alice);
         assemble.cancelEvent(eventId);
 
         // Check victim's refund amount
-        (uint256 victimRefund,) = assemble.getRefundAmounts(eventId, victim);
+        uint256 victimRefund = assemble.userTicketPayments(eventId, victim);
         assertEq(victimRefund, price);
 
         // Attacker cannot claim victim's refund
         vm.prank(attacker);
-        vm.expectRevert(abi.encodeWithSignature("NoRefund()"));
+        vm.expectRevert(abi.encodeWithSignature("NotFound()"));
         assemble.claimTicketRefund(eventId);
 
         // Victim can claim their own refund
@@ -84,6 +89,9 @@ contract SecurityTests is Test {
         assemble.claimTicketRefund(eventId);
 
         assertEq(victim.balance, victimBalanceBefore + price);
+
+        (,, uint64 startTime, uint32 capacity, uint64 venueHash, uint16 tierCount, uint8 visibility, uint8 status,,,) = assemble.events(eventId);
+        assertTrue(status == 1); // 1 = CANCELLED
     }
 
     function test_CannotBypassTicketLimits() public {
@@ -103,7 +111,7 @@ contract SecurityTests is Test {
         uint256 price = assemble.calculatePrice(eventId, 0, 1);
         vm.deal(attacker, price);
         vm.prank(attacker);
-        vm.expectRevert(abi.encodeWithSignature("NoSpace()"));
+        vm.expectRevert(abi.encodeWithSignature("BadPayment()"));
         assemble.purchaseTickets{ value: price }(eventId, 0, 1);
     }
 
@@ -115,7 +123,7 @@ contract SecurityTests is Test {
         uint256 price = assemble.calculatePrice(eventId, 0, maxQuantity + 1);
         vm.deal(attacker, price);
         vm.prank(attacker);
-        vm.expectRevert(abi.encodeWithSignature("BadQty()"));
+        vm.expectRevert(abi.encodeWithSignature("BadPayment()"));
         assemble.purchaseTickets{ value: price }(eventId, 0, maxQuantity + 1);
     }
 
@@ -128,14 +136,15 @@ contract SecurityTests is Test {
 
         // Non-organizer cannot cancel
         vm.prank(attacker);
-        vm.expectRevert(abi.encodeWithSignature("NotOrganizer()"));
+        vm.expectRevert(abi.encodeWithSignature("NotAuth()"));
         assemble.cancelEvent(eventId);
 
         // Organizer can cancel
         vm.prank(alice);
         assemble.cancelEvent(eventId);
 
-        assertTrue(assemble.isEventCancelled(eventId));
+        (,, uint64 startTime, uint32 capacity, uint64 venueHash, uint16 tierCount, uint8 visibility, uint8 status,,,) = assemble.events(eventId);
+        assertTrue(status == 1); // 1 = CANCELLED
     }
 
     function test_OnlyFeeToCanUpdateProtocolSettings() public {
@@ -163,7 +172,7 @@ contract SecurityTests is Test {
         uint256 maxFee = assemble.MAX_PROTOCOL_FEE(); // 1000 bps = 10%
 
         vm.prank(feeTo);
-        vm.expectRevert(abi.encodeWithSignature("FeeHigh()"));
+        vm.expectRevert(abi.encodeWithSignature("BadPayment()"));
         assemble.setProtocolFee(maxFee + 1);
 
         // Max fee should work
@@ -183,7 +192,7 @@ contract SecurityTests is Test {
         // Try to pay less than required
         vm.deal(attacker, requiredPrice - 1 wei);
         vm.prank(attacker);
-        vm.expectRevert(abi.encodeWithSignature("NeedMore()"));
+        vm.expectRevert(abi.encodeWithSignature("BadPayment()"));
         assemble.purchaseTickets{ value: requiredPrice - 1 wei }(eventId, 0, 1);
     }
 
@@ -226,7 +235,7 @@ contract SecurityTests is Test {
 
         // Try to claim again (should fail - already claimed)
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSignature("NoRefund()"));
+        vm.expectRevert(abi.encodeWithSignature("NotFound()"));
         assemble.claimTicketRefund(eventId);
     }
 
@@ -249,7 +258,7 @@ contract SecurityTests is Test {
 
         // Second purchase fails (no more capacity)
         vm.prank(attacker);
-        vm.expectRevert(abi.encodeWithSignature("NoSpace()"));
+        vm.expectRevert(abi.encodeWithSignature("BadPayment()"));
         assemble.purchaseTickets{ value: price }(eventId, 0, 1);
     }
 
@@ -270,7 +279,7 @@ contract SecurityTests is Test {
 
         // Attacker cannot transfer victim's soulbound token
         vm.prank(attacker);
-        vm.expectRevert(abi.encodeWithSignature("NoPerms()"));
+        vm.expectRevert(abi.encodeWithSignature("NotAuth()"));
         assemble.transfer(victim, attacker, badgeId, 1);
 
         // Even with approval, soulbound tokens cannot be transferred
@@ -278,7 +287,7 @@ contract SecurityTests is Test {
         assemble.approve(attacker, badgeId, 1);
 
         vm.prank(attacker);
-        vm.expectRevert(abi.encodeWithSignature("Soulbound()"));
+        vm.expectRevert(abi.encodeWithSignature("SocialError()"));
         assemble.transfer(victim, attacker, badgeId, 1);
 
         // Victim still has their badge
@@ -305,7 +314,7 @@ contract SecurityTests is Test {
 
         // Attacker cannot remove victim's friends
         vm.prank(attacker);
-        vm.expectRevert(abi.encodeWithSignature("NotFriends()"));
+        vm.expectRevert(abi.encodeWithSignature("SocialError()"));
         assemble.removeFriend(bob); // Attacker is not friends with bob
     }
 
@@ -319,30 +328,13 @@ contract SecurityTests is Test {
         // Try to post overly long comment
         string memory spamContent = string(new bytes(1001)); // Over 1000 char limit
         vm.prank(attacker);
-        vm.expectRevert(abi.encodeWithSignature("BadContent()"));
+        vm.expectRevert(abi.encodeWithSignature("BadInput()"));
         assemble.postComment(eventId, spamContent, 0);
 
         // Try to post empty comment
         vm.prank(attacker);
-        vm.expectRevert(abi.encodeWithSignature("BadContent()"));
+        vm.expectRevert(abi.encodeWithSignature("BadInput()"));
         assemble.postComment(eventId, "", 0);
-    }
-
-    function test_BannedUsersCannotComment() public {
-        uint256 eventId = _createEvent(0.1 ether, 100);
-
-        // Organizer bans attacker
-        vm.prank(alice); // event organizer
-        assemble.banUser(attacker, eventId);
-
-        // Banned user cannot comment
-        vm.prank(attacker);
-        vm.expectRevert(abi.encodeWithSignature("Banned()"));
-        assemble.postComment(eventId, "I shouldn't be able to post this", 0);
-
-        // Regular user can still comment
-        vm.prank(victim);
-        assemble.postComment(eventId, "This should work", 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -380,7 +372,7 @@ contract SecurityTests is Test {
         invalidSplits[1] = Assemble.PaymentSplit(bob, 3000); // 30% - total 90%
 
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSignature("BadTotal()"));
+        vm.expectRevert(abi.encodeWithSignature("BadPayment()"));
         assemble.createEvent(params, tiers, invalidSplits);
 
         // Splits with zero recipient
@@ -388,7 +380,7 @@ contract SecurityTests is Test {
         zeroSplits[0] = Assemble.PaymentSplit(address(0), 10_000);
 
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSignature("BadRecipient()"));
+        vm.expectRevert(abi.encodeWithSignature("BadInput()"));
         assemble.createEvent(params, tiers, zeroSplits);
     }
 
@@ -421,7 +413,7 @@ contract SecurityTests is Test {
         splits[0] = Assemble.PaymentSplit(alice, 10_000);
 
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSignature("BadTime()"));
+        vm.expectRevert(abi.encodeWithSignature("BadTiming()"));
         assemble.createEvent(params, tiers, splits);
     }
 

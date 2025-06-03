@@ -64,36 +64,19 @@ library SocialLibrary {
 
     /// @notice Update RSVP status for an event
     /// @param rsvps Storage mapping of RSVPs
-    /// @param attendeeLists Storage mapping of attendee lists
     /// @param eventId Event identifier
     /// @param user User updating RSVP
     /// @param status New RSVP status
     function updateRSVP(
         mapping(uint256 => mapping(address => RSVPStatus)) storage rsvps,
-        mapping(uint256 => address[]) storage attendeeLists,
         uint256 eventId,
         address user,
         RSVPStatus status
     )
         external
     {
-        RSVPStatus oldStatus = rsvps[eventId][user];
         rsvps[eventId][user] = status;
-
-        // Update attendee list if status changed to/from GOING
-        if (oldStatus != RSVPStatus.GOING && status == RSVPStatus.GOING) {
-            attendeeLists[eventId].push(user);
-        } else if (oldStatus == RSVPStatus.GOING && status != RSVPStatus.GOING) {
-            // Remove from attendee list
-            address[] storage attendees = attendeeLists[eventId];
-            for (uint256 i = 0; i < attendees.length; i++) {
-                if (attendees[i] == user) {
-                    attendees[i] = attendees[attendees.length - 1];
-                    attendees.pop();
-                    break;
-                }
-            }
-        }
+        // Removed attendee list management - derive attendees from rsvps when needed
     }
 
     /// @notice Get friends attending an event

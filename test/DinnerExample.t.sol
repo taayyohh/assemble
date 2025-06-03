@@ -163,7 +163,8 @@ contract DinnerExampleTest is Test {
         vm.prank(diner1);
         assemble.checkIn(eventId);
 
-        assertTrue(assemble.hasAttended(diner1, eventId));
+        uint256 badgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
+        assertTrue(assemble.balanceOf(diner1, badgeId) > 0);
         console.log("Diner attended and received culinary experience badge!");
         console.log("Bon appetit! What an unforgettable meal!");
     }

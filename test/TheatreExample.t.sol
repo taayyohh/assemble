@@ -144,7 +144,8 @@ contract TheatreExampleTest is Test {
         assemble.checkInWithTicket(eventId, premiumTicket);
 
         // Verify different types of attendance
-        assertTrue(assemble.hasAttended(theatergoer1, eventId), "Basic check-in should work");
+        uint256 badgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
+        assertTrue(assemble.balanceOf(theatergoer1, badgeId) > 0, "Basic check-in should work");
 
         // Verify ticket usage tracking
         assertTrue(assemble.usedTickets(premiumTicket), "Premium ticket should be marked as used");

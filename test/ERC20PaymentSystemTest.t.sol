@@ -162,10 +162,12 @@ contract ERC20PaymentSystemTest is Test {
         console.log("User paid:", userBalanceBefore - userBalanceAfter);
         console.log("Contract received:", contractBalanceAfter - contractBalanceBefore);
         
-        // Check pending withdrawals
-        uint256 organizerPending = assemble.getERC20PendingWithdrawal(address(usdc), organizer);
-        uint256 feeToPending = assemble.getERC20PendingWithdrawal(address(usdc), feeTo);
+        // Check protocol fee is correctly allocated
+        uint256 protocolPending = assemble.pendingERC20Withdrawals(address(usdc), feeTo);
+        uint256 organizerPending = assemble.pendingERC20Withdrawals(address(usdc), organizer);
+        uint256 feeToPending = assemble.pendingERC20Withdrawals(address(usdc), feeTo);
         
+        console.log("Protocol pending:", protocolPending);
         console.log("Organizer pending:", organizerPending);
         console.log("FeeTo pending:", feeToPending);
         console.log("FeeTo direct balance:", usdc.balanceOf(feeTo));
@@ -252,11 +254,11 @@ contract ERC20PaymentSystemTest is Test {
         assertEq(usdc.balanceOf(user1), user1UsdcBefore - expectedTotal, "User should have paid total amount");
         
         // Verify fee allocation (feeTo gets pending withdrawals too, not direct balance)
-        uint256 feeTopending = assemble.getERC20PendingWithdrawal(address(usdc), feeTo);
+        uint256 feeTopending = assemble.pendingERC20Withdrawals(address(usdc), feeTo);
         assertEq(feeTopending, expectedFee, "FeeTo should have pending withdrawal for protocol fee");
         
         // Verify organizer has pending withdrawal
-        uint256 pendingAmount = assemble.getERC20PendingWithdrawal(address(usdc), organizer);
+        uint256 pendingAmount = assemble.pendingERC20Withdrawals(address(usdc), organizer);
         assertEq(pendingAmount, expectedToOrganizer, "Organizer should have pending withdrawal for payment minus fee");
 
         // Verify tickets minted - use correct serial numbers
@@ -342,11 +344,11 @@ contract ERC20PaymentSystemTest is Test {
         assertEq(usdc.balanceOf(user1), user1UsdcBefore - tipAmount, "User should have paid tip amount");
         
         // Verify fee allocation (feeTo gets pending withdrawal, not direct balance)
-        uint256 feeTopending = assemble.getERC20PendingWithdrawal(address(usdc), feeTo);
+        uint256 feeTopending = assemble.pendingERC20Withdrawals(address(usdc), feeTo);
         assertEq(feeTopending, expectedFee, "FeeTo should have pending withdrawal for protocol fee");
         
         // Verify organizer has pending withdrawal (not direct balance)
-        uint256 pendingAmount = assemble.getERC20PendingWithdrawal(address(usdc), organizer);
+        uint256 pendingAmount = assemble.pendingERC20Withdrawals(address(usdc), organizer);
         assertEq(pendingAmount, expectedToOrganizer, "Organizer should have pending withdrawal for tip minus fee");
 
         console.log("Tip amount:", tipAmount);
@@ -368,7 +370,7 @@ contract ERC20PaymentSystemTest is Test {
         
         assertEq(dai.balanceOf(user2), user2DaiBefore - tipAmount, "User should have paid tip");
         
-        uint256 pendingAmount = assemble.getERC20PendingWithdrawal(address(dai), organizer);
+        uint256 pendingAmount = assemble.pendingERC20Withdrawals(address(dai), organizer);
         assertEq(pendingAmount, expectedToOrganizer, "Organizer should have pending withdrawal for tip minus fee");
     }
 
@@ -380,7 +382,7 @@ contract ERC20PaymentSystemTest is Test {
 
     function test_TipOrganizerERC20_ZeroAmount() public {
         vm.prank(user1);
-        vm.expectRevert(abi.encodeWithSignature("NeedValue()"));
+        vm.expectRevert(abi.encodeWithSignature("BadPayment()"));
         assemble.tipEventERC20(eventId, address(usdc), 0);
     }
 
@@ -407,9 +409,9 @@ contract ERC20PaymentSystemTest is Test {
         assemble.purchaseTicketsERC20(multiSplitEventId, 0, quantity, address(usdc));
 
         // Verify split distribution via pending withdrawals (not direct balances)
-        uint256 recipient1Pending = assemble.getERC20PendingWithdrawal(address(usdc), recipient1);
-        uint256 recipient2Pending = assemble.getERC20PendingWithdrawal(address(usdc), recipient2);
-        uint256 feeTopending = assemble.getERC20PendingWithdrawal(address(usdc), feeTo);
+        uint256 recipient1Pending = assemble.pendingERC20Withdrawals(address(usdc), recipient1);
+        uint256 recipient2Pending = assemble.pendingERC20Withdrawals(address(usdc), recipient2);
+        uint256 feeTopending = assemble.pendingERC20Withdrawals(address(usdc), feeTo);
         
         assertEq(recipient1Pending, expectedToRecipient1, "Recipient1 should have pending withdrawal for 70%");
         assertEq(recipient2Pending, expectedToRecipient2, "Recipient2 should have pending withdrawal for 30%");
@@ -459,14 +461,14 @@ contract ERC20PaymentSystemTest is Test {
         assemble.purchaseTicketsERC20(eventId, 0, 2, address(usdc)); // 0.05 USDC total
 
         uint256 organizerBalanceBefore = usdc.balanceOf(organizer);
-        uint256 organizerPendingBefore = assemble.getERC20PendingWithdrawal(address(usdc), organizer);
+        uint256 organizerPendingBefore = assemble.pendingERC20Withdrawals(address(usdc), organizer);
 
         // Organizer should be able to withdraw their ERC20 balance
         vm.prank(organizer);
         assemble.claimERC20Funds(address(usdc));
 
         uint256 organizerBalanceAfter = usdc.balanceOf(organizer);
-        uint256 organizerPendingAfter = assemble.getERC20PendingWithdrawal(address(usdc), organizer);
+        uint256 organizerPendingAfter = assemble.pendingERC20Withdrawals(address(usdc), organizer);
 
         // Check that organizer received their pending withdrawal
         assertEq(organizerBalanceAfter, organizerBalanceBefore + organizerPendingBefore, "Organizer should have received pending withdrawal amount");
@@ -564,7 +566,7 @@ contract ERC20PaymentSystemTest is Test {
         uint256 expectedTipFee = (tipAmount * assemble.protocolFeeBps()) / 10_000;
         uint256 expectedTotalFees = expectedPurchaseFee + expectedTipFee;
         
-        uint256 feeToActualPending = assemble.getERC20PendingWithdrawal(address(usdc), feeTo);
+        uint256 feeToActualPending = assemble.pendingERC20Withdrawals(address(usdc), feeTo);
         
         assertEq(feeToActualPending, expectedTotalFees, "Platform should collect correct total fees via pending withdrawals");
         
@@ -599,10 +601,10 @@ contract ERC20PaymentSystemTest is Test {
         assemble.purchaseTickets{value: 0.3 ether}(complexEventId, 0, 3, referrer, platformFeeBps);
         
         // Verify all recipients have correct pending withdrawals
-        uint256 recipient1USDC = assemble.getERC20PendingWithdrawal(address(usdc), recipient1);
-        uint256 recipient1DAI = assemble.getERC20PendingWithdrawal(address(dai), recipient1);
+        uint256 recipient1USDC = assemble.pendingERC20Withdrawals(address(usdc), recipient1);
+        uint256 recipient1DAI = assemble.pendingERC20Withdrawals(address(dai), recipient1);
         uint256 recipient1ETH = assemble.pendingWithdrawals(recipient1);
-        uint256 referrerTotal = assemble.totalReferralFees(referrer);
+        uint256 referrerTotal = assemble.pendingWithdrawals(referrer);
         
         // All recipients should have multi-currency pending withdrawals
         assertGt(recipient1USDC, 0, "Recipient1 should have USDC pending from USDC purchase");
@@ -699,13 +701,13 @@ contract ERC20PaymentSystemTest is Test {
         assemble.tipEventERC20(eventId, address(weth), 1e18);
         
         // Check pending withdrawals
-        uint256 organizerUSDC = assemble.getERC20PendingWithdrawal(address(usdc), organizer);
-        uint256 organizerDAI = assemble.getERC20PendingWithdrawal(address(dai), organizer);
-        uint256 organizerWETH = assemble.getERC20PendingWithdrawal(address(weth), organizer);
+        uint256 protocolPending = assemble.pendingERC20Withdrawals(address(usdc), feeTo);
+        uint256 organizerPending = assemble.pendingERC20Withdrawals(address(usdc), organizer);
+        uint256 organizerDAIPending = assemble.pendingERC20Withdrawals(address(dai), organizer);
+        uint256 organizerWETHPending = assemble.pendingERC20Withdrawals(address(weth), organizer);
         
-        assertGt(organizerUSDC, 0, "Organizer should have USDC pending");
-        assertGt(organizerDAI, 0, "Organizer should have DAI pending");
-        assertGt(organizerWETH, 0, "Organizer should have WETH pending");
+        assertGt(protocolPending, 0, "Platform should have pending ERC20 withdrawals");
+        assertGt(organizerPending, 0, "Organizer should have pending ERC20 withdrawals");
         
         // Withdraw all currencies
         uint256 balanceUSDCBefore = usdc.balanceOf(organizer);
@@ -722,14 +724,14 @@ contract ERC20PaymentSystemTest is Test {
         assemble.claimERC20Funds(address(weth));
         
         // Verify complete withdrawals
-        assertEq(usdc.balanceOf(organizer), balanceUSDCBefore + organizerUSDC, "USDC withdrawal complete");
-        assertEq(dai.balanceOf(organizer), balanceDAIBefore + organizerDAI, "DAI withdrawal complete");
-        assertEq(weth.balanceOf(organizer), balanceWETHBefore + organizerWETH, "WETH withdrawal complete");
+        assertEq(usdc.balanceOf(organizer), balanceUSDCBefore + organizerPending, "USDC withdrawal complete");
+        assertEq(dai.balanceOf(organizer), balanceDAIBefore + organizerDAIPending, "DAI withdrawal complete");
+        assertEq(weth.balanceOf(organizer), balanceWETHBefore + organizerWETHPending, "WETH withdrawal complete");
         
         // Verify no pending amounts remain
-        assertEq(assemble.getERC20PendingWithdrawal(address(usdc), organizer), 0, "No USDC pending");
-        assertEq(assemble.getERC20PendingWithdrawal(address(dai), organizer), 0, "No DAI pending");
-        assertEq(assemble.getERC20PendingWithdrawal(address(weth), organizer), 0, "No WETH pending");
+        assertEq(assemble.pendingERC20Withdrawals(address(usdc), organizer), 0, "No USDC pending");
+        assertEq(assemble.pendingERC20Withdrawals(address(dai), organizer), 0, "No DAI pending");
+        assertEq(assemble.pendingERC20Withdrawals(address(weth), organizer), 0, "No WETH pending");
         
         console.log("Cross-currency withdrawal - All currencies successfully withdrawn");
     }

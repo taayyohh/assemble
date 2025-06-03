@@ -39,9 +39,12 @@ contract LocationSystemTestSimple is Test {
         // Test that events store and retrieve location correctly
         uint256 eventId = _createTestEvent();
 
-        (int64 retrievedLat, int64 retrievedLng) = assemble.getEventLocation(eventId);
-        assertEq(retrievedLat, NYC_LAT, "Event latitude should match");
-        assertEq(retrievedLng, NYC_LNG, "Event longitude should match");
+        // Test location retrieval
+        (, uint128 locationData,,,,,,,,,) = assemble.events(eventId);
+        int64 retrievedLat = int64(uint64(locationData >> 64));
+        int64 retrievedLng = int64(uint64(locationData));
+        assertEq(retrievedLat, NYC_LAT, "Retrieved latitude should match");
+        assertEq(retrievedLng, NYC_LNG, "Retrieved longitude should match");
 
         console.log("Event location:", uint64(retrievedLat), uint64(retrievedLng));
     }

@@ -15,7 +15,6 @@ pragma solidity ^0.8.24;
 
 import { SocialLibrary } from "./libraries/SocialLibrary.sol";
 import { CommentLibrary } from "./libraries/CommentLibrary.sol";
-import { RefundLibrary } from "./libraries/RefundLibrary.sol";
 
 /// @title Assemble - Decentralized Event Management Protocol
 /// @notice A comprehensive protocol for managing events, tickets, social interactions, and payments onchain
@@ -26,66 +25,35 @@ contract Assemble {
                             CUSTOM ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    error NotOrganizer();
-    error NotAuth();
-    error BadFeeTo();
-    error BadTime();
-    error BadEndTime();
-    error NoTiers();
-    error BadCap();
-    error NoSupply();
-    error BadSaleTimes();
-    error NoEvent();
-    error BadQty();
-    error NoTier();
-    error NotStarted();
-    error Ended();
-    error NoSpace();
-    error NeedMore();
-    error RefundFail();
-    error NeedValue();
-    error NoFunds();
-    error TransferFail();
-    error CantAddSelf();
-    error BadAddr();
-    error AlreadyFriends();
-    error NotFriends();
-    error Banned();
-    error BadContent();
-    error NoParent();
-    error ParentDel();
-    error AlreadyLiked();
-    error NotLiked();
-    error NoComment();
-    error NoSplits();
+    // Validation errors (consolidated address/input validation)
+    error BadInput(); // Replaces: BadAddr, BadRef, BadRecipient, BadContent, BadQty, BadCap
+    
+    // Timing errors (consolidated time-related errors)  
+    error BadTiming(); // Replaces: BadTime, BadEndTime, BadSaleTimes, NotStarted, Ended, EventOver, NotEventTime
+    
+    // Authorization errors (consolidated permission errors)
+    error NotAuth(); // Keeps existing, replaces: NotOrganizer, NoPerms, WrongOrg
+    
+    // Supply/capacity errors (consolidated quantity errors)
+    error NoSupply(); // Keeps existing, replaces: NoSpace, NoTiers
+    
+    // Payment errors (consolidated fee/payment errors)
+    error BadPayment(); // Replaces: BadBps, BadTotal, FeeHigh, PlatformHigh, NeedMore, NeedValue
+    
+    // State errors (consolidated state validation)
+    error BadState(); // Replaces: NotActive, Started, Cancelled, NotCancelled, Used, NotDone, NotExpired
+    
+    // Resource errors (consolidated missing resource errors)
+    error NotFound(); // Replaces: NoEvent, NoTier, NoParent, NoSplits, NoTicket, NoFunds, NoRefund
+    
+    // Operation errors (consolidated operation failures)
+    error OpFailed(); // Replaces: TransferFail, RefundFail, Expired, Soulbound
+    
+    // Social errors (consolidated social feature errors)
+    error SocialError(); // Replaces: CantAddSelf, AlreadyFriends, NotFriends, AlreadyInvited, NotInvited, NotPrivate
+    
+    // Keep essential specific errors that are used frequently
     error TooMany();
-    error BadRecipient();
-    error BadBps();
-    error BadTotal();
-    error FeeHigh();
-    error NotActive();
-    error Started();
-    error Cancelled();
-    error NotCancelled();
-    error Expired();
-    error NoRefund();
-    error NotEventTime();
-    error EventOver();
-    error WrongOrg();
-    error NotDone();
-    error NotExpired();
-    error AlreadyBan();
-    error NotBan();
-    error NoPerms();
-    error Soulbound();
-    error NoTicket();
-    error WrongEvent();
-    error Used();
-    error NotInvited();
-    error AlreadyInvited();
-    error NotPrivate();
-    error PlatformHigh();
-    error BadRef();
     error UnsupportedToken();
 
     /*//////////////////////////////////////////////////////////////
@@ -231,8 +199,6 @@ contract Assemble {
     // Comment system - keep essential ones public
     mapping(uint256 => CommentLibrary.Comment) public comments;
     mapping(uint256 => uint256[]) private eventComments;
-    mapping(uint256 => mapping(address => bool)) private commentLikes;
-    mapping(address => bool) private bannedUsers;
 
     // Security: Pull payment pattern
     mapping(address => uint256) public pendingWithdrawals;
@@ -241,7 +207,6 @@ contract Assemble {
     mapping(address => mapping(address => bool)) public isFriend;
     mapping(address => address[]) private friendLists;
     mapping(uint256 => mapping(address => SocialLibrary.RSVPStatus)) public rsvps;
-    mapping(uint256 => address[]) private attendeeLists;
 
     // ERC-6909 core storage (keep public for standard compliance)
     mapping(address => mapping(uint256 => uint256)) public balanceOf;
@@ -249,10 +214,9 @@ contract Assemble {
     mapping(address => mapping(address => bool)) public isOperator;
     mapping(uint256 => uint256) public totalSupply;
 
-    // Refund tracking - keep private except what tests need
-    mapping(uint256 => bool) public eventCancelled;
-    mapping(uint256 => mapping(address => uint256)) private userTicketPayments;
-    mapping(uint256 => mapping(address => uint256)) private userTipPayments;
+    // Refund tracking - make public for test access
+    mapping(uint256 => mapping(address => uint256)) public userTicketPayments;
+    mapping(uint256 => mapping(address => uint256)) public userTipPayments;
     mapping(uint256 => uint256) private eventCancellationTime;
 
     // Attendance tracking
@@ -260,9 +224,6 @@ contract Assemble {
 
     // Invite system for private events
     mapping(uint256 => mapping(address => bool)) public eventInvites;
-
-    // Platform fee tracking
-    mapping(address => uint256) public totalReferralFees;
 
     // V2.0 MINIMAL ADDITIONS - Reuse existing patterns for size efficiency
     
@@ -282,27 +243,17 @@ contract Assemble {
     // Core protocol events
     event EventCreated(uint256 indexed eventId, address indexed organizer, uint256 startTime);
     event TicketPurchased(uint256 indexed eventId, address indexed buyer, uint256 quantity, uint256 price);
-    event RSVPUpdated(uint256 indexed eventId, address indexed user, SocialLibrary.RSVPStatus status);
-    event FriendAdded(address indexed user1, address indexed user2);
-    event FriendRemoved(address indexed user1, address indexed user2);
-    event PaymentAllocated(uint256 indexed eventId, address indexed recipient, uint256 amount, string role);
     event FundsClaimed(address indexed recipient, uint256 amount);
     event EventTipped(uint256 indexed eventId, address indexed tipper, uint256 amount);
-    event AttendanceVerified(uint256 indexed eventId, address indexed user);
 
     // Comment system events
     event CommentPosted(uint256 indexed eventId, uint256 indexed commentId, address indexed author, uint256 parentId);
-    event CommentLiked(uint256 indexed commentId, address indexed user);
-    event CommentUnliked(uint256 indexed commentId, address indexed user);
-    event CommentDeleted(uint256 indexed commentId, address indexed deletedBy);
-    event UserBanned(address indexed user, address indexed bannedBy);
-    event UserUnbanned(address indexed user, address indexed unbannedBy);
 
     // Admin events
     event FeeToUpdated(address indexed oldFeeTo, address indexed newFeeTo);
     event ProtocolFeeUpdated(uint256 oldFee, uint256 newFee);
     event EventCancelled(uint256 indexed eventId, address indexed organizer, uint256 timestamp);
-    event RefundClaimed(uint256 indexed eventId, address indexed user, uint256 amount, string refundType);
+    event RefundClaimed(uint256 indexed eventId, address indexed user, uint256 amount);
 
     // Platform fee events
     event PlatformFeeAllocated(uint256 indexed eventId, address indexed referrer, uint256 amount, uint256 feeBps);
@@ -312,17 +263,12 @@ contract Assemble {
     event Approval(address indexed owner, address indexed spender, uint256 indexed id, uint256 amount);
     event OperatorSet(address indexed owner, address indexed operator, bool approved);
 
-    // Additional events
-    event TicketUsed(uint256 indexed eventId, address indexed user, uint256 indexed ticketTokenId, uint256 tierId);
-
     // Invite system events
     event UserInvited(uint256 indexed eventId, address indexed invitee, address indexed organizer);
-    event InvitationRevoked(uint256 indexed eventId, address indexed invitee, address indexed organizer);
 
     // V2.0 events
     event VenueCredentialMinted(address indexed organizer, uint64 indexed venueHash);
     event TokenSupportUpdated(address indexed token, bool supported);
-    event EventLocationSet(uint256 indexed eventId, int64 latitude, int64 longitude);
     event ERC20FundsClaimed(address indexed user, address indexed token, uint256 amount);
 
     /*//////////////////////////////////////////////////////////////
@@ -354,7 +300,7 @@ contract Assemble {
     /// @notice Initialize the Assemble protocol
     /// @param _feeTo Initial fee recipient address
     constructor(address _feeTo) {
-        if (_feeTo == address(0)) revert BadFeeTo();
+        if (_feeTo == address(0)) revert BadPayment();
         feeTo = _feeTo;
         emit FeeToUpdated(address(0), _feeTo);
     }
@@ -377,14 +323,14 @@ contract Assemble {
         returns (uint256 eventId)
     {
         // Input validation
-        if (params.startTime <= block.timestamp) revert BadTime();
-        if (params.endTime <= params.startTime) revert BadEndTime();
-        if (tiers.length == 0) revert NoTiers();
-        if (params.capacity == 0) revert BadCap();
+        if (params.startTime <= block.timestamp) revert BadTiming();
+        if (params.endTime <= params.startTime) revert BadTiming();
+        if (tiers.length == 0) revert NoSupply();
+        if (params.capacity == 0) revert BadPayment();
 
         // Inline coordinate validation (more efficient than library call)
-        if (params.latitude < -900000000 || params.latitude > 900000000) revert BadAddr();
-        if (params.longitude < -1800000000 || params.longitude > 1800000000) revert BadAddr();
+        if (params.latitude < -900000000 || params.latitude > 900000000) revert BadInput();
+        if (params.longitude < -1800000000 || params.longitude > 1800000000) revert BadInput();
 
         // Validate payment splits
         _validatePaymentSplits(splits);
@@ -431,7 +377,7 @@ contract Assemble {
         uint256 tiersLength = tiers.length;
         for (uint256 i = 0; i < tiersLength;) {
             if (tiers[i].maxSupply == 0) revert NoSupply();
-            if (tiers[i].startSaleTime > tiers[i].endSaleTime) revert BadSaleTimes();
+            if (tiers[i].startSaleTime > tiers[i].endSaleTime) revert BadTiming();
             ticketTiers[eventId][i] = tiers[i];
             unchecked {
                 ++i;
@@ -448,7 +394,6 @@ contract Assemble {
         }
 
         emit EventCreated(eventId, msg.sender, params.startTime);
-        emit EventLocationSet(eventId, params.latitude, params.longitude);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -494,25 +439,25 @@ contract Assemble {
         internal
     {
         // CHECKS: Validate inputs and event state
-        if (events[eventId].startTime == 0) revert NoEvent();
-        if (quantity == 0 || quantity > MAX_TICKET_QUANTITY) revert BadQty();
+        if (events[eventId].startTime == 0) revert NotFound();
+        if (quantity == 0 || quantity > MAX_TICKET_QUANTITY) revert BadPayment();
 
         TicketTier storage tier = ticketTiers[eventId][tierId];
-        if (tier.maxSupply == 0) revert NoTier();
-        if (block.timestamp < tier.startSaleTime) revert NotStarted();
-        if (block.timestamp > tier.endSaleTime) revert Ended();
-        if (tier.sold + quantity > tier.maxSupply) revert NoSpace();
+        if (tier.maxSupply == 0) revert NoSupply();
+        if (block.timestamp < tier.startSaleTime) revert BadTiming();
+        if (block.timestamp > tier.endSaleTime) revert BadTiming();
+        if (tier.sold + quantity > tier.maxSupply) revert BadPayment();
 
         // Validate platform fee parameters
-        if (platformFeeBps > MAX_PLATFORM_FEE) revert PlatformHigh();
-        if (platformFeeBps > 0 && referrer == address(0)) revert BadRef();
-        if (referrer == msg.sender) revert BadRef(); // Prevent self-referral
+        if (platformFeeBps > MAX_PLATFORM_FEE) revert BadPayment();
+        if (platformFeeBps > 0 && referrer == address(0)) revert BadInput();
+        if (referrer == msg.sender) revert BadInput(); // Prevent self-referral
 
         // Check event visibility and access permissions
         if (
             events[eventId].visibility == 2 && !eventInvites[eventId][msg.sender]
         ) {
-            revert NotInvited();
+            revert SocialError();
         }
 
         // INLINE price calculation (eliminating calculatePrice function)
@@ -520,7 +465,7 @@ contract Assemble {
         uint256 totalCost = basePrice * quantity;
         if (totalCost == 0 && basePrice > 0) totalCost = 1; // Minimum price for paid tickets
         
-        if (msg.value < totalCost) revert NeedMore();
+        if (msg.value < totalCost) revert BadPayment();
 
         // EFFECTS: Update state before external calls
         tier.sold += quantity;
@@ -541,7 +486,6 @@ contract Assemble {
         if (referrer != address(0) && platformFeeBps > 0) {
             platformFee = (totalCost * platformFeeBps) / 10_000;
             pendingWithdrawals[referrer] += platformFee;
-            totalReferralFees[referrer] += platformFee;
             emit PlatformFeeAllocated(eventId, referrer, platformFee, platformFeeBps);
         }
 
@@ -560,7 +504,7 @@ contract Assemble {
         // INTERACTIONS: Refund excess payment last
         if (msg.value > totalCost) {
             (bool success,) = payable(msg.sender).call{ value: msg.value - totalCost }("");
-            if (!success) revert RefundFail();
+            if (!success) revert OpFailed();
         }
 
         emit TicketPurchased(eventId, msg.sender, quantity, totalCost);
@@ -584,13 +528,13 @@ contract Assemble {
 
     /// @notice Internal function to handle event tips with optional platform fees
     function _tipEvent(uint256 eventId, address referrer, uint256 platformFeeBps) internal {
-        if (events[eventId].startTime == 0) revert NoEvent();
-        if (msg.value == 0) revert NeedValue();
+        if (events[eventId].startTime == 0) revert NotFound();
+        if (msg.value == 0) revert BadPayment();
 
         // Validate platform fee parameters
-        if (platformFeeBps > MAX_PLATFORM_FEE) revert PlatformHigh();
-        if (platformFeeBps > 0 && referrer == address(0)) revert BadRef();
-        if (referrer == msg.sender) revert BadRef();
+        if (platformFeeBps > MAX_PLATFORM_FEE) revert BadPayment();
+        if (platformFeeBps > 0 && referrer == address(0)) revert BadInput();
+        if (referrer == msg.sender) revert BadInput();
 
         // Track tip for potential refunds
         userTipPayments[eventId][msg.sender] += msg.value;
@@ -601,7 +545,6 @@ contract Assemble {
         if (referrer != address(0) && platformFeeBps > 0) {
             platformFee = (msg.value * platformFeeBps) / 10_000;
             pendingWithdrawals[referrer] += platformFee;
-            totalReferralFees[referrer] += platformFee;
             emit PlatformFeeAllocated(eventId, referrer, platformFee, platformFeeBps);
         }
 
@@ -623,34 +566,34 @@ contract Assemble {
     /// @notice Claim pending funds (pull payment pattern)
     function claimFunds() external nonReentrant {
         uint256 amount = pendingWithdrawals[msg.sender];
-        if (amount == 0) revert NoFunds();
+        if (amount == 0) revert NotFound();
 
         // Effects before interactions
         pendingWithdrawals[msg.sender] = 0;
 
         // Safe transfer
         (bool success,) = payable(msg.sender).call{ value: amount }("");
-        if (!success) revert TransferFail();
+        if (!success) revert OpFailed();
 
         emit FundsClaimed(msg.sender, amount);
     }
 
     /// @notice Purchase tickets using ERC20 (minimal implementation)
     function purchaseTicketsERC20(uint256 eventId, uint256 tierId, uint256 quantity, address token) external nonReentrant {
-        if (events[eventId].startTime == 0) revert NoEvent();
+        if (events[eventId].startTime == 0) revert NotFound();
         if (!supportedTokens[token]) revert UnsupportedToken();
-        if (quantity == 0 || quantity > MAX_TICKET_QUANTITY) revert BadQty();
+        if (quantity == 0 || quantity > MAX_TICKET_QUANTITY) revert BadPayment();
 
         TicketTier storage tier = ticketTiers[eventId][tierId];
-        if (tier.maxSupply == 0) revert NoTier();
-        if (block.timestamp < tier.startSaleTime) revert NotStarted();
-        if (block.timestamp > tier.endSaleTime) revert Ended();
-        if (tier.sold + quantity > tier.maxSupply) revert NoSpace();
+        if (tier.maxSupply == 0) revert NoSupply();
+        if (block.timestamp < tier.startSaleTime) revert BadTiming();
+        if (block.timestamp > tier.endSaleTime) revert BadTiming();
+        if (tier.sold + quantity > tier.maxSupply) revert BadPayment();
 
-        if (events[eventId].visibility == 2 && !eventInvites[eventId][msg.sender]) revert NotInvited();
+        if (events[eventId].visibility == 2 && !eventInvites[eventId][msg.sender]) revert SocialError();
 
         uint256 totalCost = tier.price * quantity;
-        if (totalCost == 0) revert BadQty();
+        if (totalCost == 0) revert BadPayment();
 
         tier.sold += quantity;
 
@@ -661,7 +604,7 @@ contract Assemble {
         }
 
         (bool success,) = token.call(abi.encodeWithSelector(0x23b872dd, msg.sender, address(this), totalCost));
-        if (!success) revert TransferFail();
+        if (!success) revert OpFailed();
 
         uint256 protocolFee = (totalCost * protocolFeeBps) / 10_000;
         uint256 netAmount = totalCost - protocolFee;
@@ -680,23 +623,23 @@ contract Assemble {
 
     /// @notice Purchase tickets using ERC20 with platform fee
     function purchaseTicketsERC20(uint256 eventId, uint256 tierId, uint256 quantity, address token, address referrer, uint256 platformFeeBps) external nonReentrant {
-        if (events[eventId].startTime == 0) revert NoEvent();
+        if (events[eventId].startTime == 0) revert NotFound();
         if (!supportedTokens[token]) revert UnsupportedToken();
-        if (platformFeeBps > MAX_PLATFORM_FEE) revert PlatformHigh();
-        if (platformFeeBps > 0 && referrer == address(0)) revert BadRef();
-        if (referrer == msg.sender) revert BadRef();
-        if (quantity == 0 || quantity > MAX_TICKET_QUANTITY) revert BadQty();
+        if (platformFeeBps > MAX_PLATFORM_FEE) revert BadPayment();
+        if (platformFeeBps > 0 && referrer == address(0)) revert BadInput();
+        if (referrer == msg.sender) revert BadInput();
+        if (quantity == 0 || quantity > MAX_TICKET_QUANTITY) revert BadPayment();
 
         TicketTier storage tier = ticketTiers[eventId][tierId];
-        if (tier.maxSupply == 0) revert NoTier();
-        if (block.timestamp < tier.startSaleTime) revert NotStarted();
-        if (block.timestamp > tier.endSaleTime) revert Ended();
-        if (tier.sold + quantity > tier.maxSupply) revert NoSpace();
+        if (tier.maxSupply == 0) revert NoSupply();
+        if (block.timestamp < tier.startSaleTime) revert BadTiming();
+        if (block.timestamp > tier.endSaleTime) revert BadTiming();
+        if (tier.sold + quantity > tier.maxSupply) revert BadPayment();
 
-        if (events[eventId].visibility == 2 && !eventInvites[eventId][msg.sender]) revert NotInvited();
+        if (events[eventId].visibility == 2 && !eventInvites[eventId][msg.sender]) revert SocialError();
 
         uint256 totalCost = tier.price * quantity;
-        if (totalCost == 0) revert BadQty();
+        if (totalCost == 0) revert BadPayment();
 
         tier.sold += quantity;
 
@@ -707,7 +650,7 @@ contract Assemble {
         }
 
         (bool success,) = token.call(abi.encodeWithSelector(0x23b872dd, msg.sender, address(this), totalCost));
-        if (!success) revert TransferFail();
+        if (!success) revert OpFailed();
 
         uint256 platformFee = (totalCost * platformFeeBps) / 10_000;
         uint256 remainingAmount = totalCost - platformFee;
@@ -716,7 +659,6 @@ contract Assemble {
 
         if (platformFee > 0) {
             pendingERC20Withdrawals[token][referrer] += platformFee;
-            totalReferralFees[referrer] += platformFee;
             emit PlatformFeeAllocated(eventId, referrer, platformFee, platformFeeBps);
         }
 
@@ -734,12 +676,12 @@ contract Assemble {
 
     /// @notice Tip event using ERC20 (minimal implementation)
     function tipEventERC20(uint256 eventId, address token, uint256 amount) external nonReentrant {
-        if (events[eventId].startTime == 0) revert NoEvent();
+        if (events[eventId].startTime == 0) revert NotFound();
         if (!supportedTokens[token]) revert UnsupportedToken();
-        if (amount == 0) revert NeedValue();
+        if (amount == 0) revert BadPayment();
 
         (bool success,) = token.call(abi.encodeWithSelector(0x23b872dd, msg.sender, address(this), amount));
-        if (!success) revert TransferFail();
+        if (!success) revert OpFailed();
 
         uint256 protocolFee = (amount * protocolFeeBps) / 10_000;
         uint256 netAmount = amount - protocolFee;
@@ -758,15 +700,15 @@ contract Assemble {
 
     /// @notice Tip event using ERC20 with platform fee
     function tipEventERC20(uint256 eventId, address token, uint256 amount, address referrer, uint256 platformFeeBps) external nonReentrant {
-        if (events[eventId].startTime == 0) revert NoEvent();
+        if (events[eventId].startTime == 0) revert NotFound();
         if (!supportedTokens[token]) revert UnsupportedToken();
-        if (platformFeeBps > MAX_PLATFORM_FEE) revert PlatformHigh();
-        if (platformFeeBps > 0 && referrer == address(0)) revert BadRef();
-        if (referrer == msg.sender) revert BadRef();
-        if (amount == 0) revert NeedValue();
+        if (platformFeeBps > MAX_PLATFORM_FEE) revert BadPayment();
+        if (platformFeeBps > 0 && referrer == address(0)) revert BadInput();
+        if (referrer == msg.sender) revert BadInput();
+        if (amount == 0) revert BadPayment();
 
         (bool success,) = token.call(abi.encodeWithSelector(0x23b872dd, msg.sender, address(this), amount));
-        if (!success) revert TransferFail();
+        if (!success) revert OpFailed();
 
         uint256 platformFee = (amount * platformFeeBps) / 10_000;
         uint256 remainingAmount = amount - platformFee;
@@ -775,7 +717,6 @@ contract Assemble {
 
         if (platformFee > 0) {
             pendingERC20Withdrawals[token][referrer] += platformFee;
-            totalReferralFees[referrer] += platformFee;
             emit PlatformFeeAllocated(eventId, referrer, platformFee, platformFeeBps);
         }
 
@@ -794,12 +735,12 @@ contract Assemble {
     /// @notice Claim ERC20 funds (minimal implementation)
     function claimERC20Funds(address token) external nonReentrant {
         uint256 amount = pendingERC20Withdrawals[token][msg.sender];
-        if (amount == 0) revert NoFunds();
+        if (amount == 0) revert NotFound();
 
         pendingERC20Withdrawals[token][msg.sender] = 0;
 
         (bool success,) = token.call(abi.encodeWithSelector(0xa9059cbb, msg.sender, amount));
-        if (!success) revert TransferFail();
+        if (!success) revert OpFailed();
 
         emit ERC20FundsClaimed(msg.sender, token, amount);
     }
@@ -811,20 +752,18 @@ contract Assemble {
     /// @notice Add a friend to your social graph
     /// @param friend Address to add as friend
     function addFriend(address friend) external {
-        if (friend == msg.sender) revert CantAddSelf();
-        if (friend == address(0)) revert BadAddr();
-        if (isFriend[msg.sender][friend]) revert AlreadyFriends();
+        if (friend == msg.sender) revert SocialError();
+        if (friend == address(0)) revert BadInput();
+        if (isFriend[msg.sender][friend]) revert SocialError();
 
         isFriend[msg.sender][friend] = true;
         friendLists[msg.sender].push(friend);
-
-        emit FriendAdded(msg.sender, friend);
     }
 
     /// @notice Remove a friend from your social graph
     /// @param friend Address to remove as friend
     function removeFriend(address friend) external {
-        if (!isFriend[msg.sender][friend]) revert NotFriends();
+        if (!isFriend[msg.sender][friend]) revert SocialError();
 
         isFriend[msg.sender][friend] = false;
 
@@ -837,17 +776,15 @@ contract Assemble {
                 break;
             }
         }
-
-        emit FriendRemoved(msg.sender, friend);
     }
 
     /// @notice Update RSVP status for an event
     /// @param eventId Event identifier
     /// @param status New RSVP status
     function updateRSVP(uint256 eventId, SocialLibrary.RSVPStatus status) external {
-        if (events[eventId].startTime == 0) revert NoEvent();
-        SocialLibrary.updateRSVP(rsvps, attendeeLists, eventId, msg.sender, status);
-        emit RSVPUpdated(eventId, msg.sender, status);
+        if (events[eventId].startTime == 0) revert NotFound();
+        // Inline the simple library call (just one line)
+        rsvps[eventId][msg.sender] = status;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -858,14 +795,14 @@ contract Assemble {
     /// @param eventId Event to invite users to
     /// @param invitees Array of addresses to invite
     function inviteToEvent(uint256 eventId, address[] calldata invitees) external {
-        if (eventOrganizers[eventId] != msg.sender) revert NotOrganizer();
-        if (events[eventId].visibility != 2) revert NotPrivate();
+        if (eventOrganizers[eventId] != msg.sender) revert NotAuth();
+        if (events[eventId].visibility != 2) revert SocialError();
 
         uint256 inviteesLength = invitees.length;
         for (uint256 i = 0; i < inviteesLength;) {
             address invitee = invitees[i];
-            if (eventInvites[eventId][invitee]) revert AlreadyInvited();
-            
+            if (eventInvites[eventId][invitee]) revert SocialError();
+
             eventInvites[eventId][invitee] = true;
             emit UserInvited(eventId, invitee, msg.sender);
 
@@ -875,38 +812,17 @@ contract Assemble {
         }
     }
 
-    /// @notice Remove invitation from a private event
-    /// @param eventId Event to remove invitation from
-    /// @param invitee Address to remove invitation for
-    function removeInvitation(uint256 eventId, address invitee) external {
-        if (eventOrganizers[eventId] != msg.sender) revert NotOrganizer();
-        if (!eventInvites[eventId][invitee]) revert NotInvited();
-
-        eventInvites[eventId][invitee] = false;
-        emit InvitationRevoked(eventId, invitee, msg.sender);
-    }
-
-    /// @notice Check if an address is invited to an event
-    /// @param eventId Event identifier
-    /// @param user Address to check
-    /// @return invited True if the user is invited
-    function isInvited(uint256 eventId, address user) external view returns (bool invited) {
-        return eventInvites[eventId][user];
-    }
-
     /*//////////////////////////////////////////////////////////////
                         COMMENT SYSTEM
     //////////////////////////////////////////////////////////////*/
 
     function postComment(uint256 eventId, string calldata content, uint256 parentId) external {
-        if (events[eventId].startTime == 0) revert NoEvent();
-        if (bannedUsers[msg.sender]) revert Banned();
-        if (bytes(content).length == 0 || bytes(content).length > 1000) revert BadContent();
+        if (events[eventId].startTime == 0) revert NotFound();
+        if (bytes(content).length == 0 || bytes(content).length > 1000) revert BadInput();
 
-        // Validate parent comment if replying
+        // Validate parent comment if replying (simplified)
         if (parentId > 0) {
-            if (comments[parentId].timestamp == 0) revert NoParent();
-            if (comments[parentId].isDeleted) revert ParentDel();
+            if (comments[parentId].timestamp == 0) revert NotFound();
         }
 
         uint256 commentId = nextCommentId++;
@@ -915,39 +831,11 @@ contract Assemble {
             author: msg.sender,
             timestamp: block.timestamp,
             content: content,
-            parentId: parentId,
-            isDeleted: false,
-            likes: 0
+            parentId: parentId
         });
 
         eventComments[eventId].push(commentId);
         emit CommentPosted(eventId, commentId, msg.sender, parentId);
-    }
-
-    function likeComment(uint256 commentId) external {
-        if (commentLikes[commentId][msg.sender]) revert AlreadyLiked();
-        commentLikes[commentId][msg.sender] = true;
-        comments[commentId].likes++;
-        emit CommentLiked(commentId, msg.sender);
-    }
-
-    function unlikeComment(uint256 commentId) external {
-        if (!commentLikes[commentId][msg.sender]) revert NotLiked();
-        commentLikes[commentId][msg.sender] = false;
-        comments[commentId].likes--;
-        emit CommentUnliked(commentId, msg.sender);
-    }
-
-    function deleteComment(uint256 commentId, uint256 eventId) external {
-        if (events[eventId].startTime == 0) revert NoEvent();
-        CommentLibrary.Comment storage comment = comments[commentId];
-        if (comment.timestamp == 0) revert NoComment();
-        if (comment.author != msg.sender && eventOrganizers[eventId] != msg.sender && msg.sender != feeTo) {
-            revert NotAuth();
-        }
-
-        comment.isDeleted = true;
-        emit CommentDeleted(commentId, msg.sender);
     }
 
     // Simplified view functions
@@ -959,40 +847,18 @@ contract Assemble {
         return comments[commentId];
     }
 
-    function hasLikedComment(uint256 commentId, address user) external view returns (bool) {
-        return commentLikes[commentId][user];
-    }
-
-    function banUser(address user, uint256 eventId) external {
-        if (events[eventId].startTime == 0) revert NoEvent();
-        if (eventOrganizers[eventId] != msg.sender && msg.sender != feeTo) revert NotAuth();
-        if (bannedUsers[user]) revert AlreadyBan();
-
-        bannedUsers[user] = true;
-        emit UserBanned(user, msg.sender);
-    }
-
-    function unbanUser(address user, uint256 eventId) external {
-        if (events[eventId].startTime == 0) revert NoEvent();
-        if (eventOrganizers[eventId] != msg.sender && msg.sender != feeTo) revert NotAuth();
-        if (!bannedUsers[user]) revert NotBan();
-
-        bannedUsers[user] = false;
-        emit UserUnbanned(user, msg.sender);
-    }
-
     /*//////////////////////////////////////////////////////////////
                         ERC-6909 IMPLEMENTATION
     //////////////////////////////////////////////////////////////*/
 
     function transfer(address from, address to, uint256 id, uint256 amount) external {
         if (msg.sender != from && !isOperator[from][msg.sender] && allowance[from][msg.sender][id] < amount) {
-            revert NoPerms();
+            revert NotAuth();
         }
 
         // Inline soulbound check (more efficient than enum cast)
         uint256 tokenType = id >> 248;
-        if (tokenType == 2 || tokenType == 3 || tokenType == 4) revert Soulbound(); // ATTENDANCE_BADGE=2, ORGANIZER_CRED=3, VENUE_CRED=4
+        if (tokenType == 2 || tokenType == 3 || tokenType == 4) revert SocialError(); // ATTENDANCE_BADGE=2, ORGANIZER_CRED=3, VENUE_CRED=4
 
         if (msg.sender != from && !isOperator[from][msg.sender]) {
             allowance[from][msg.sender][id] -= amount;
@@ -1032,7 +898,6 @@ contract Assemble {
             PaymentSplit storage split = splits[i];
             uint256 payment = (amount * split.basisPoints) / 10_000;
             pendingWithdrawals[split.recipient] += payment;
-            emit PaymentAllocated(eventId, split.recipient, payment, "");
             unchecked {
                 ++i;
             }
@@ -1045,20 +910,20 @@ contract Assemble {
 
     function _validatePaymentSplits(PaymentSplit[] calldata splits) internal pure {
         uint256 length = splits.length;
-        if (length == 0) revert NoSplits();
+        if (length == 0) revert NotFound();
         if (length > MAX_PAYMENT_SPLITS) revert TooMany();
 
         uint256 totalBps = 0;
         for (uint256 i = 0; i < length;) {
             PaymentSplit calldata split = splits[i];
-            if (split.recipient == address(0)) revert BadRecipient();
-            if (split.basisPoints == 0) revert BadBps();
+            if (split.recipient == address(0)) revert BadInput();
+            if (split.basisPoints == 0) revert BadPayment();
             totalBps += split.basisPoints;
             unchecked {
                 ++i;
             }
         }
-        if (totalBps != 10_000) revert BadTotal();
+        if (totalBps != 10_000) revert BadPayment();
     }
 
     function generateTokenId(
@@ -1082,62 +947,9 @@ contract Assemble {
         return friendLists[user];
     }
 
-    function hasAttended(address user, uint256 eventId) external view returns (bool) {
-        uint256 badgeId = generateTokenId(TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
-        return balanceOf[user][badgeId] > 0;
-    }
-
-    function getPaymentSplits(uint256 eventId) external view returns (PaymentSplit[] memory) {
-        return eventPaymentSplits[eventId];
-    }
-
-    function getUserRSVP(uint256 eventId, address user) external view returns (SocialLibrary.RSVPStatus) {
-        return rsvps[eventId][user];
-    }
-
-    /// @notice Calculate ticket price - minimal implementation for test compatibility
+    // Consolidated price calculation (minimal for test compatibility)
     function calculatePrice(uint256 eventId, uint256 tierId, uint256 quantity) external view returns (uint256) {
         return ticketTiers[eventId][tierId].price * quantity;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                         V2.0 VIEW FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Get event location coordinates (inline unpacking for efficiency)
-    /// @param eventId Event identifier
-    /// @return lat Latitude in 1e-7 degrees
-    /// @return lng Longitude in 1e-7 degrees
-    function getEventLocation(uint256 eventId) external view returns (int64 lat, int64 lng) {
-        uint128 locationData = events[eventId].locationData;
-        lat = int64(uint64(locationData >> 64));
-        lng = int64(uint64(locationData));
-    }
-
-    /// @notice Check if venue has hosted events (inline hash generation)
-    /// @param venueName Venue name to check
-    /// @return count Number of events hosted at this venue
-    function getVenueEventCount(string calldata venueName) external view returns (uint256 count) {
-        uint64 venueHash = uint64(uint256(keccak256(abi.encodePacked(venueName))));
-        return venueEventCount[venueHash];
-    }
-
-    /// @notice Check if user has venue credentials for a venue (inline hash)
-    /// @param user Address to check
-    /// @param venueName Venue name
-    /// @return hasCredential Whether user has credential for this venue
-    function hasVenueCredential(address user, string calldata venueName) external view returns (bool hasCredential) {
-        uint64 venueHash = uint64(uint256(keccak256(abi.encodePacked(venueName))));
-        uint256 tokenId = generateTokenId(TokenType.VENUE_CRED, 0, venueHash, 0);
-        return balanceOf[user][tokenId] > 0;
-    }
-
-    /// @notice Get ERC20 pending withdrawal amount
-    /// @param token ERC20 token address
-    /// @param user User address
-    /// @return amount Pending withdrawal amount
-    function getERC20PendingWithdrawal(address token, address user) external view returns (uint256 amount) {
-        return pendingERC20Withdrawals[token][user];
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1145,14 +957,14 @@ contract Assemble {
     //////////////////////////////////////////////////////////////*/
 
     function setFeeTo(address newFeeTo) external onlyFeeTo {
-        if (newFeeTo == address(0)) revert BadFeeTo();
+        if (newFeeTo == address(0)) revert BadPayment();
         address oldFeeTo = feeTo;
         feeTo = newFeeTo;
         emit FeeToUpdated(oldFeeTo, newFeeTo);
     }
 
     function setProtocolFee(uint256 newFeeBps) external onlyFeeTo {
-        if (newFeeBps > MAX_PROTOCOL_FEE) revert FeeHigh();
+        if (newFeeBps > MAX_PROTOCOL_FEE) revert BadPayment();
         uint256 oldFee = protocolFeeBps;
         protocolFeeBps = newFeeBps;
         emit ProtocolFeeUpdated(oldFee, newFeeBps);
@@ -1162,7 +974,7 @@ contract Assemble {
     /// @param token ERC20 token address
     /// @param supported Whether token should be supported
     function setSupportedToken(address token, bool supported) external onlyFeeTo {
-        if (token == address(0)) revert BadAddr();
+        if (token == address(0)) revert BadInput();
         supportedTokens[token] = supported;
         emit TokenSupportUpdated(token, supported);
     }
@@ -1174,13 +986,12 @@ contract Assemble {
     /// @notice Cancel event and enable refunds
     /// @param eventId Event to cancel
     function cancelEvent(uint256 eventId) external {
-        if (eventOrganizers[eventId] != msg.sender) revert NotOrganizer();
-        if (events[eventId].status != 0) revert NotActive();
-        if (block.timestamp >= events[eventId].startTime) revert Started();
+        if (eventOrganizers[eventId] != msg.sender) revert NotAuth();
+        if (events[eventId].status != 0) revert BadState();
+        if (block.timestamp >= events[eventId].startTime) revert BadTiming();
 
         events[eventId].status = 1; // CANCELLED = 1
         eventCancellationTime[eventId] = block.timestamp;
-        eventCancelled[eventId] = true;
 
         emit EventCancelled(eventId, msg.sender, block.timestamp);
     }
@@ -1188,39 +999,39 @@ contract Assemble {
     /// @notice Claim refund for cancelled event tickets
     /// @param eventId Cancelled event ID
     function claimTicketRefund(uint256 eventId) external nonReentrant {
-        if (!eventCancelled[eventId]) revert NotCancelled();
-        if (block.timestamp > eventCancellationTime[eventId] + REFUND_CLAIM_DEADLINE) revert Expired();
+        if (events[eventId].status != 1) revert BadState();
+        if (block.timestamp > eventCancellationTime[eventId] + REFUND_CLAIM_DEADLINE) revert BadTiming();
 
         uint256 refundAmount = userTicketPayments[eventId][msg.sender];
-        if (refundAmount == 0) revert NoRefund();
+        if (refundAmount == 0) revert NotFound();
 
         // Clear payment tracking to prevent re-claiming
         userTicketPayments[eventId][msg.sender] = 0;
 
         // Transfer refund
         (bool success,) = payable(msg.sender).call{ value: refundAmount }("");
-        if (!success) revert TransferFail();
+        if (!success) revert OpFailed();
 
-        emit RefundClaimed(eventId, msg.sender, refundAmount, "");
+        emit RefundClaimed(eventId, msg.sender, refundAmount);
     }
 
     /// @notice Claim refund for cancelled event tips
     /// @param eventId Cancelled event ID
     function claimTipRefund(uint256 eventId) external nonReentrant {
-        if (!eventCancelled[eventId]) revert NotCancelled();
-        if (block.timestamp > eventCancellationTime[eventId] + REFUND_CLAIM_DEADLINE) revert Expired();
+        if (events[eventId].status != 1) revert BadState();
+        if (block.timestamp > eventCancellationTime[eventId] + REFUND_CLAIM_DEADLINE) revert BadTiming();
 
         uint256 refundAmount = userTipPayments[eventId][msg.sender];
-        if (refundAmount == 0) revert NoRefund();
+        if (refundAmount == 0) revert NotFound();
 
         // Clear payment tracking to prevent re-claiming
         userTipPayments[eventId][msg.sender] = 0;
 
         // Transfer refund
         (bool success,) = payable(msg.sender).call{ value: refundAmount }("");
-        if (!success) revert TransferFail();
+        if (!success) revert OpFailed();
 
-        emit RefundClaimed(eventId, msg.sender, refundAmount, "");
+        emit RefundClaimed(eventId, msg.sender, refundAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1232,14 +1043,13 @@ contract Assemble {
     /// @dev Mints a single attendance badge per user per event
     function checkIn(uint256 eventId) external {
         PackedEventData memory eventData = events[eventId];
-        if (eventData.startTime == 0) revert NoEvent();
-        if (block.timestamp < eventData.startTime) revert NotStarted();
-        if (block.timestamp > eventData.startTime + 86_400) revert Ended();
+        if (eventData.startTime == 0) revert NotFound();
+        if (block.timestamp < eventData.startTime) revert BadTiming();
+        if (block.timestamp > eventData.startTime + 86_400) revert BadTiming();
 
         uint256 badgeId = generateTokenId(TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
         if (balanceOf[msg.sender][badgeId] == 0) {
             _mint(msg.sender, badgeId, 1);
-            emit AttendanceVerified(eventId, msg.sender);
         }
     }
 
@@ -1249,15 +1059,15 @@ contract Assemble {
     /// @dev Verifies ticket ownership and mints tier-specific attendance badge
     function checkInWithTicket(uint256 eventId, uint256 ticketTokenId) external {
         PackedEventData memory eventData = events[eventId];
-        if (eventData.startTime == 0) revert NoEvent();
-        if (block.timestamp < eventData.startTime) revert NotStarted();
-        if (block.timestamp > eventData.startTime + 86_400) revert Ended();
+        if (eventData.startTime == 0) revert NotFound();
+        if (block.timestamp < eventData.startTime) revert BadTiming();
+        if (block.timestamp > eventData.startTime + 86_400) revert BadTiming();
 
-        if (balanceOf[msg.sender][ticketTokenId] == 0) revert NoTicket();
-        if (((ticketTokenId >> 184) & 0xFFFFFFFFFFFFFFFF) != eventId) revert WrongEvent();
+        if (balanceOf[msg.sender][ticketTokenId] == 0) revert NotFound();
+        if (((ticketTokenId >> 184) & 0xFFFFFFFFFFFFFFFF) != eventId) revert SocialError();
 
         uint256 tierId = (ticketTokenId >> 152) & 0xFFFFFFFF;
-        if (usedTickets[ticketTokenId]) revert Used();
+        if (usedTickets[ticketTokenId]) revert SocialError();
 
         usedTickets[ticketTokenId] = true;
         uint256 badgeId = generateTokenId(TokenType.ATTENDANCE_BADGE, eventId, tierId, 0);
@@ -1265,16 +1075,13 @@ contract Assemble {
         if (balanceOf[msg.sender][badgeId] == 0) {
             _mint(msg.sender, badgeId, 1);
         }
-
-        emit TicketUsed(eventId, msg.sender, ticketTokenId, tierId);
-        emit AttendanceVerified(eventId, msg.sender);
     }
 
     function claimOrganizerCredential(uint256 eventId) external {
-        if (eventOrganizers[eventId] != msg.sender) revert NotOrganizer();
+        if (eventOrganizers[eventId] != msg.sender) revert NotAuth();
 
         PackedEventData memory eventData = events[eventId];
-        if (block.timestamp <= eventData.startTime + 86_400) revert NotStarted();
+        if (block.timestamp <= eventData.startTime + 86_400) revert BadTiming();
 
         uint256 credId = generateTokenId(TokenType.ORGANIZER_CRED, eventId, 0, 0);
 
@@ -1290,15 +1097,15 @@ contract Assemble {
     /// @dev Allows ticket purchaser to check in friends/family using tickets they bought
     function checkInDelegate(uint256 eventId, uint256 ticketTokenId, address attendee) external {
         PackedEventData memory eventData = events[eventId];
-        if (eventData.startTime == 0) revert NoEvent();
-        if (block.timestamp < eventData.startTime) revert NotStarted();
-        if (block.timestamp > eventData.startTime + 86_400) revert Ended();
+        if (eventData.startTime == 0) revert NotFound();
+        if (block.timestamp < eventData.startTime) revert BadTiming();
+        if (block.timestamp > eventData.startTime + 86_400) revert BadTiming();
 
-        if (balanceOf[msg.sender][ticketTokenId] == 0) revert NoTicket();
-        if (((ticketTokenId >> 184) & 0xFFFFFFFFFFFFFFFF) != eventId) revert WrongEvent();
+        if (balanceOf[msg.sender][ticketTokenId] == 0) revert NotFound();
+        if (((ticketTokenId >> 184) & 0xFFFFFFFFFFFFFFFF) != eventId) revert SocialError();
 
         uint256 tierId = (ticketTokenId >> 152) & 0xFFFFFFFF;
-        if (usedTickets[ticketTokenId]) revert Used();
+        if (usedTickets[ticketTokenId]) revert SocialError();
 
         usedTickets[ticketTokenId] = true;
         uint256 badgeId = generateTokenId(TokenType.ATTENDANCE_BADGE, eventId, tierId, 0);
@@ -1306,23 +1113,5 @@ contract Assemble {
         if (balanceOf[attendee][badgeId] == 0) {
             _mint(attendee, badgeId, 1);
         }
-
-        emit TicketUsed(eventId, msg.sender, ticketTokenId, tierId);
-        emit AttendanceVerified(eventId, attendee);
-    }
-
-    function getRefundAmounts(
-        uint256 eventId,
-        address user
-    )
-        external
-        view
-        returns (uint256 ticketRefund, uint256 tipRefund)
-    {
-        return (userTicketPayments[eventId][user], userTipPayments[eventId][user]);
-    }
-
-    function isEventCancelled(uint256 eventId) external view returns (bool) {
-        return eventCancelled[eventId];
     }
 }

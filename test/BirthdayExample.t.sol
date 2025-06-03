@@ -211,12 +211,8 @@ contract BirthdayExampleTest is Test {
         vm.prank(birthdayPerson);
         assemble.postComment(eventId, "OMG yes! I can't wait to hear your amazing voice!", 3);
 
-        // Friends like each other's comments
-        vm.prank(friend);
-        assemble.likeComment(1); // Like tipper's question
-
-        vm.prank(tipper);
-        assemble.likeComment(3); // Like friend's karaoke comment
+        // Friends respond to each other (Note: like system removed for optimization)
+        // Comments provide engagement through threading instead
 
         console.log("Friends are chatting and getting excited for the party!");
 
@@ -237,11 +233,22 @@ contract BirthdayExampleTest is Test {
         uint256[] memory comments = assemble.getEventComments(eventId);
         assertEq(comments.length, 6, "Should have 6 comments total");
 
-        // Verify some comments have likes
-        CommentLibrary.Comment memory likedComment = assemble.getComment(1);
-        assertGt(likedComment.likes, 0, "Comment should have likes");
+        // Note: Comment likes removed for bytecode optimization
+        // Threaded conversations provide sufficient community engagement
 
         console.log("Birthday party comments bring the community together!");
         console.log("Perfect integration of social features!");
+
+        // Add new comment from sister
+        address sister = makeAddr("sister");
+        vm.deal(sister, 1 ether);
+
+        vm.prank(sister);
+        assemble.postComment(eventId, "Let's do karaoke after dinner!", 0);
+
+        // Note: Comment liking system removed for bytecode optimization
+        // Comments still provide community engagement through threading
+
+        console.log("Family building excitement through comments");
     }
 }

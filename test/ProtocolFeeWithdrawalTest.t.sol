@@ -129,14 +129,14 @@ contract ProtocolFeeWithdrawalTest is Test {
         uint256 expectedFee = (tierPrice * protocolFeeBps) / 10_000;
 
         // Check initial state
-        assertEq(assemble.getERC20PendingWithdrawal(address(usdc), feeTo), 0, "feeTo should start with 0 pending USDC");
+        assertEq(assemble.pendingERC20Withdrawals(address(usdc), feeTo), 0, "feeTo should start with 0 pending USDC");
         
         // User purchases ticket with USDC (tier 0 = 0.025 ether)
         vm.prank(user1);
         assemble.purchaseTicketsERC20(eventId, 0, 1, address(usdc));
 
         // Verify protocol fee is pending
-        assertEq(assemble.getERC20PendingWithdrawal(address(usdc), feeTo), expectedFee, "Protocol fee should be pending for feeTo");
+        assertEq(assemble.pendingERC20Withdrawals(address(usdc), feeTo), expectedFee, "Protocol fee should be pending for feeTo");
 
         // feeTo withdraws protocol fee
         uint256 balanceBefore = usdc.balanceOf(feeTo);
@@ -145,7 +145,7 @@ contract ProtocolFeeWithdrawalTest is Test {
 
         // Verify withdrawal
         assertEq(usdc.balanceOf(feeTo), balanceBefore + expectedFee, "feeTo should receive protocol fee in USDC");
-        assertEq(assemble.getERC20PendingWithdrawal(address(usdc), feeTo), 0, "feeTo USDC pending should be cleared");
+        assertEq(assemble.pendingERC20Withdrawals(address(usdc), feeTo), 0, "feeTo USDC pending should be cleared");
     }
 
     function test_MultiCurrencyProtocolFees() public {
@@ -172,8 +172,8 @@ contract ProtocolFeeWithdrawalTest is Test {
         assemble.tipEvent{value: ethAmount}(eventId);
 
         // Verify fees are pending in each currency
-        assertEq(assemble.getERC20PendingWithdrawal(address(usdc), feeTo), expectedUsdcFee, "USDC fee should be pending");
-        assertEq(assemble.getERC20PendingWithdrawal(address(dai), feeTo), expectedDaiFee, "DAI fee should be pending");
+        assertEq(assemble.pendingERC20Withdrawals(address(usdc), feeTo), expectedUsdcFee, "USDC fee should be pending");
+        assertEq(assemble.pendingERC20Withdrawals(address(dai), feeTo), expectedDaiFee, "DAI fee should be pending");
         assertEq(assemble.pendingWithdrawals(feeTo), expectedEthFee, "ETH fee should be pending");
 
         // feeTo withdraws each currency
@@ -193,8 +193,8 @@ contract ProtocolFeeWithdrawalTest is Test {
         assertEq(feeTo.balance, ethBefore + expectedEthFee, "feeTo should receive ETH fees");
 
         // Verify all pending fees cleared
-        assertEq(assemble.getERC20PendingWithdrawal(address(usdc), feeTo), 0, "USDC pending should be cleared");
-        assertEq(assemble.getERC20PendingWithdrawal(address(dai), feeTo), 0, "DAI pending should be cleared");
+        assertEq(assemble.pendingERC20Withdrawals(address(usdc), feeTo), 0, "USDC pending should be cleared");
+        assertEq(assemble.pendingERC20Withdrawals(address(dai), feeTo), 0, "DAI pending should be cleared");
         assertEq(assemble.pendingWithdrawals(feeTo), 0, "ETH pending should be cleared");
     }
 

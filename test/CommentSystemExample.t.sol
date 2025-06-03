@@ -66,41 +66,8 @@ contract CommentSystemExampleTest is Test {
         console.log("All comments stored and retrieved correctly");
     }
 
-    function test_CommentLikingSystem() public {
-        console.log("\n=== Comment Liking System ===");
-
-        // Alice posts helpful comment
-        vm.prank(alice);
-        assemble.postComment(eventId, "Pro tip: Parking is free behind the building!", 0);
-
-        // Bob and Charlie like the comment
-        vm.prank(bob);
-        assemble.likeComment(1);
-
-        vm.prank(charlie);
-        assemble.likeComment(1);
-
-        console.log("Two users liked Alice's helpful comment");
-
-        // Check like count
-        CommentLibrary.Comment memory comment = assemble.getComment(1);
-        assertEq(comment.likes, 2, "Should have 2 likes");
-
-        // Check individual like status
-        assertTrue(assemble.hasLikedComment(1, bob));
-        assertTrue(assemble.hasLikedComment(1, charlie));
-        assertFalse(assemble.hasLikedComment(1, alice)); // Author didn't like own comment
-
-        // Bob unlikes the comment
-        vm.prank(bob);
-        assemble.unlikeComment(1);
-
-        comment = assemble.getComment(1);
-        assertEq(comment.likes, 1, "Should have 1 like after unliking");
-        assertFalse(assemble.hasLikedComment(1, bob));
-
-        console.log("Like/unlike system working correctly");
-    }
+    // Note: Comment liking system removed for bytecode optimization
+    // Threaded comments provide sufficient interaction without like/unlike functionality
 
     function test_ThreadedConversations() public {
         console.log("\n=== Threaded Conversations ===");
@@ -158,55 +125,40 @@ contract CommentSystemExampleTest is Test {
 
         console.log("Spam comment posted");
 
-        // Organizer deletes the spam
-        vm.prank(organizer);
-        assemble.deleteComment(1, eventId);
+        // Note: Comment deletion removed - comments are now permanent on blockchain
+        // Frontend applications can implement their own filtering and moderation
 
-        // Verify comment is marked as deleted
-        CommentLibrary.Comment memory deletedComment = assemble.getComment(1);
-        assertTrue(deletedComment.isDeleted, "Comment should be marked as deleted");
+        // Verify comment exists and cannot be deleted
+        CommentLibrary.Comment memory spamComment = assemble.getComment(1);
+        assertEq(spamComment.author, spammer, "Comment should exist permanently");
+        assertGt(spamComment.timestamp, 0, "Comment should have valid timestamp");
 
-        console.log("Organizer deleted spam comment");
+        console.log("Comments are now permanent - moderation handled at application layer");
 
-        // Organizer bans the spammer
-        vm.prank(organizer);
-        assemble.banUser(spammer, eventId);
-
-        // Spammer tries to comment again but fails
+        // User can still comment (but frontend could filter them out)
         vm.prank(spammer);
-        vm.expectRevert(abi.encodeWithSignature("Banned()"));
-        assemble.postComment(eventId, "This should fail", 0);
+        assemble.postComment(eventId, "This will be posted but clients can filter it", 0);
 
-        console.log("Spammer banned and prevented from commenting");
-
-        // Organizer unbans user (second chance)
-        vm.prank(organizer);
-        assemble.unbanUser(spammer, eventId);
-
-        // User can comment again (but hopefully learned their lesson)
-        vm.prank(spammer);
-        assemble.postComment(eventId, "Sorry about that. Looking forward to the event!", 0);
-
-        console.log("User unbanned and can comment appropriately");
+        console.log("Moderation now handled by client-side filtering of permanent comments");
     }
 
     function test_CommentValidation() public {
         console.log("\n=== Comment Validation ===");
 
-        // Test empty comment rejection
+        // Try to post comment that's too long
+        string memory tooLongContent = string(new bytes(1001)); // Over 1000 chars
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSignature("BadContent()"));
-        assemble.postComment(eventId, "", 0);
+        vm.expectRevert(abi.encodeWithSignature("BadInput()"));
+        assemble.postComment(eventId, tooLongContent, 0);
 
-        // Test comment too long rejection
-        string memory longComment = _generateLongString(1001); // Over 1000 char limit
+        // Try to post empty comment
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSignature("BadContent()"));
-        assemble.postComment(eventId, longComment, 0);
+        vm.expectRevert(abi.encodeWithSignature("BadInput()"));
+        assemble.postComment(eventId, "", 0);
 
         // Test replying to non-existent comment
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSignature("NoParent()"));
+        vm.expectRevert(abi.encodeWithSignature("NotFound()"));
         assemble.postComment(eventId, "Reply to nothing", 999);
 
         console.log("All comment validations working correctly");

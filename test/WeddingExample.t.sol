@@ -131,8 +131,8 @@ contract WeddingExampleTest is Test {
         console.log("  Guest 3: Confirmed attendance");
 
         // Check RSVP status directly
-        assertEq(uint8(assemble.getUserRSVP(eventId, guest1)), uint8(SocialLibrary.RSVPStatus.GOING));
-        assertEq(uint8(assemble.getUserRSVP(eventId, guest2)), uint8(SocialLibrary.RSVPStatus.GOING));
+        assertEq(uint8(assemble.rsvps(eventId, guest1)), uint8(SocialLibrary.RSVPStatus.GOING));
+        assertEq(uint8(assemble.rsvps(eventId, guest2)), uint8(SocialLibrary.RSVPStatus.GOING));
 
         // Guests send wedding gifts via tips (this works perfectly!)
         vm.prank(guest1);

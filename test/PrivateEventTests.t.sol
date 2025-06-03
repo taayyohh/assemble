@@ -52,11 +52,11 @@ contract PrivateEventTests is Test {
         vm.prank(organizer);
         assemble.inviteToEvent(privateEventId, invitees);
 
-        // Verify invitations
-        assertTrue(assemble.isInvited(privateEventId, alice), "Alice should be invited");
-        assertTrue(assemble.isInvited(privateEventId, bob), "Bob should be invited");
-        assertFalse(assemble.isInvited(privateEventId, charlie), "Charlie should not be invited");
-        assertFalse(assemble.isInvited(privateEventId, unauthorized), "Unauthorized should not be invited");
+        // Verify invitations using eventInvites mapping directly
+        assertTrue(assemble.eventInvites(privateEventId, alice), "Alice should be invited");
+        assertTrue(assemble.eventInvites(privateEventId, bob), "Bob should be invited");
+        assertFalse(assemble.eventInvites(privateEventId, charlie), "Charlie should not be invited");
+        assertFalse(assemble.eventInvites(privateEventId, unauthorized), "Unauthorized should not be invited");
     }
 
     function test_OnlyOrganizerCanInvite() public {
@@ -64,7 +64,7 @@ contract PrivateEventTests is Test {
         invitees[0] = alice;
 
         vm.prank(unauthorized);
-        vm.expectRevert(abi.encodeWithSignature("NotOrganizer()"));
+        vm.expectRevert(abi.encodeWithSignature("NotAuth()"));
         assemble.inviteToEvent(privateEventId, invitees);
     }
 
@@ -76,7 +76,7 @@ contract PrivateEventTests is Test {
         invitees[0] = alice;
 
         vm.prank(organizer);
-        vm.expectRevert(abi.encodeWithSignature("NotPrivate()"));
+        vm.expectRevert(abi.encodeWithSignature("SocialError()"));
         assemble.inviteToEvent(publicEventId, invitees);
     }
 
@@ -89,32 +89,8 @@ contract PrivateEventTests is Test {
 
         // Try to invite again
         vm.prank(organizer);
-        vm.expectRevert(abi.encodeWithSignature("AlreadyInvited()"));
+        vm.expectRevert(abi.encodeWithSignature("SocialError()"));
         assemble.inviteToEvent(privateEventId, invitees);
-    }
-
-    function test_RemoveInvitation() public {
-        // First invite
-        address[] memory invitees = new address[](2);
-        invitees[0] = alice;
-        invitees[1] = bob;
-
-        vm.prank(organizer);
-        assemble.inviteToEvent(privateEventId, invitees);
-
-        // Remove Alice's invitation
-        vm.prank(organizer);
-        assemble.removeInvitation(privateEventId, alice);
-
-        // Verify removal
-        assertFalse(assemble.isInvited(privateEventId, alice));
-        assertTrue(assemble.isInvited(privateEventId, bob));
-    }
-
-    function test_CannotRemoveNonExistentInvitation() public {
-        vm.prank(organizer);
-        vm.expectRevert(abi.encodeWithSignature("NotInvited()"));
-        assemble.removeInvitation(privateEventId, alice);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -143,25 +119,7 @@ contract PrivateEventTests is Test {
         // Try to purchase without invitation
         uint256 ticketPrice = 0.1 ether;
         vm.prank(unauthorized);
-        vm.expectRevert(abi.encodeWithSignature("NotInvited()"));
-        assemble.purchaseTickets{ value: ticketPrice }(privateEventId, 0, 1);
-    }
-
-    function test_RevokedInvitationCannotPurchase() public {
-        // Invite and then revoke
-        address[] memory invitees = new address[](1);
-        invitees[0] = alice;
-
-        vm.prank(organizer);
-        assemble.inviteToEvent(privateEventId, invitees);
-
-        vm.prank(organizer);
-        assemble.removeInvitation(privateEventId, alice);
-
-        // Alice can no longer purchase
-        uint256 ticketPrice = 0.1 ether;
-        vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSignature("NotInvited()"));
+        vm.expectRevert(abi.encodeWithSignature("SocialError()"));
         assemble.purchaseTickets{ value: ticketPrice }(privateEventId, 0, 1);
     }
 
@@ -261,7 +219,7 @@ contract PrivateEventTests is Test {
         vm.deal(randomPerson, 1 ether);
 
         vm.prank(randomPerson);
-        vm.expectRevert(abi.encodeWithSignature("NotInvited()"));
+        vm.expectRevert(abi.encodeWithSignature("SocialError()"));
         assemble.purchaseTickets{ value: 0.2 ether }(artShowId, 0, 1);
 
         console.log("Exclusivity maintained - uninvited users blocked");

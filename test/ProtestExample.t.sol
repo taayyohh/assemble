@@ -181,7 +181,8 @@ contract ProtestExampleTest is Test {
         vm.prank(supporter1);
         assemble.checkIn(eventId);
 
-        assertTrue(assemble.hasAttended(supporter1, eventId));
+        uint256 badgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
+        assertTrue(assemble.balanceOf(supporter1, badgeId) > 0);
         console.log("Protester attended and received activism badge!");
         console.log("Fighting for our future! The movement grows stronger!");
     }
