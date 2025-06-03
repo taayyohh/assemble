@@ -1,10 +1,10 @@
-# Assemble Protocol V2.0
+# Assemble Protocol
 
 A next-generation singleton smart contract protocol for onchain event management with comprehensive social coordination, location tracking, and multi-currency support.
 
 *Built with ERC-6909 multi-token standard, EIP-1153 transient storage, soulbound credentials, and advanced venue management.*
 
-## 🚀 V2.0 Features
+## 🚀 Features
 
 ### 🎯 **Core Event Management**
 - **Multi-Tier Ticketing** - Configurable pricing, capacity limits, and payment splits
@@ -103,22 +103,6 @@ forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast
 ### Core Event Functions
 ```solidity
 // Create event with location data
-function createEventWithLocation(
-    address organizer,
-    uint64 startTime,
-    string calldata venueName,
-    address primary,
-    address secondary,
-    uint256 primaryBps,
-    uint256 secondaryBps,
-    string calldata metadataURI,
-    TicketTier[] calldata tiers,
-    PaymentSplit[] calldata splits,
-    int64 latitude,  // GPS coordinates (scaled by 1e6)
-    int64 longitude
-) external payable returns (uint256 eventId)
-
-// Traditional event creation (no location)
 function createEvent(
     EventParams calldata params, 
     TicketTier[] calldata tiers, 
@@ -133,34 +117,21 @@ function purchaseTickets(uint256 eventId, uint256 tierId, uint256 quantity) exte
 function purchaseTickets(uint256 eventId, uint256 tierId, uint256 quantity, address referrer, uint256 platformFeeBps) external payable
 
 // ERC20 payments
-function purchaseTicketsWithERC20(uint256 eventId, uint256 tierId, uint256 quantity, address token) external
-function purchaseTicketsWithERC20(uint256 eventId, uint256 tierId, uint256 quantity, address token, address referrer, uint256 platformFeeBps) external
-```
-
-### Venue & Location Functions
-```solidity
-// Check if user has venue credentials
-function hasVenueCredential(address user, string calldata venueName) external view returns (bool)
-
-// Get event location data
-function getEventLocation(uint256 eventId) external view returns (int64 latitude, int64 longitude)
-
-// Get venue statistics
-function getVenueEventCount(string calldata venueName) external view returns (uint256)
+function purchaseTicketsERC20(uint256 eventId, uint256 tierId, uint256 quantity, address token) external
+function purchaseTicketsERC20(uint256 eventId, uint256 tierId, uint256 quantity, address token, address referrer, uint256 platformFeeBps) external
 ```
 
 ### ERC20 Payment Functions
 ```solidity
 // Tip events with ERC20 tokens
-function tipEventWithERC20(uint256 eventId, address token, uint256 amount) external
-function tipEventWithERC20(uint256 eventId, address token, uint256 amount, address referrer, uint256 platformFeeBps) external
+function tipEventERC20(uint256 eventId, address token, uint256 amount) external
+function tipEventERC20(uint256 eventId, address token, uint256 amount, address referrer, uint256 platformFeeBps) external
 
 // Withdraw ERC20 earnings
-function withdrawERC20(address token) external
-function withdrawProtocolERC20(address token) external
+function claimERC20Funds(address token) external
 
-// Check pending withdrawals
-function getERC20PendingWithdrawal(address token, address user) external view returns (uint256)
+// Check token support
+function setSupportedToken(address token, bool supported) external
 ```
 
 ### Social Functions  
@@ -173,7 +144,6 @@ function postComment(uint256 eventId, string calldata content, uint256 parentId)
 ### Private Event Functions
 ```solidity
 function inviteToEvent(uint256 eventId, address[] calldata invitees) external
-function removeInvitation(uint256 eventId, address invitee) external  
 function isInvited(uint256 eventId, address user) external view returns (bool)
 ```
 
@@ -197,19 +167,13 @@ Precise GPS coordinate storage with efficient data packing:
 int64 latitude = 40743100;   // 40.7431 * 1e6
 int64 longitude = -73959700; // -73.9597 * 1e6
 
-uint256 eventId = assemble.createEventWithLocation{value: PLATFORM_FEE}(
-    organizer,
-    startTime,
-    "Madison Square Garden",
-    alice, bob, 7000, 3000,
-    "https://example.com/event",
-    tiers, splits,
-    latitude, longitude
+uint256 eventId = assemble.createEvent{value: PLATFORM_FEE}(
+    params,  // includes latitude/longitude
+    tiers, 
+    splits
 );
 
-// Retrieve location data
-(int64 lat, int64 lng) = assemble.getEventLocation(eventId);
-// lat = 40743100, lng = -73959700
+// Location data is automatically packed and stored efficiently
 ```
 
 **Key Features:**
@@ -224,20 +188,14 @@ Organizers earn soulbound venue credentials for hosting events:
 
 ```solidity
 // Create event at specific venue
-uint256 eventId = assemble.createEventWithLocation{value: PLATFORM_FEE}(
-    organizer,
-    startTime,
-    "The Fillmore",  // Venue name creates credential
-    // ... other params
+uint256 eventId = assemble.createEvent{value: PLATFORM_FEE}(
+    params, // includes venueName: "The Fillmore"
+    tiers, 
+    splits
 );
 
-// Organizer automatically receives venue credential token
-bool hasCredential = assemble.hasVenueCredential(organizer, "The Fillmore");
-// hasCredential = true (soulbound, non-transferable)
-
-// Venue credentials accumulate over time
-uint256 eventCount = assemble.getVenueEventCount("The Fillmore");
-// Tracks total events at this venue
+// Organizer automatically receives venue credential token (soulbound, non-transferable)
+// Venue credentials accumulate over time and build reputation
 ```
 
 **Benefits:**
@@ -253,15 +211,15 @@ Support for ETH and major ERC20 tokens:
 ```solidity
 // USDC ticket purchase
 IERC20(USDC).approve(address(assemble), ticketPrice);
-assemble.purchaseTicketsWithERC20(eventId, tierId, quantity, USDC);
+assemble.purchaseTicketsERC20(eventId, tierId, quantity, USDC);
 
 // DAI event tip with platform fee
 IERC20(DAI).approve(address(assemble), tipAmount);
-assemble.tipEventWithERC20(eventId, DAI, tipAmount, platformAddress, 200);
+assemble.tipEventERC20(eventId, DAI, tipAmount, platformAddress, 200);
 
 // Mixed payments - ETH tips, USDC tickets
 assemble.tipEvent{value: 0.01 ether}(eventId);
-assemble.purchaseTicketsWithERC20(eventId, 0, 1, USDC);
+assemble.purchaseTicketsERC20(eventId, 0, 1, USDC);
 ```
 
 **Supported Tokens:**
@@ -273,7 +231,7 @@ assemble.purchaseTicketsWithERC20(eventId, 0, 1, USDC);
 **Features:**
 - **Pull Payment Pattern** - Secure withdrawal mechanism
 - **Mixed Currency Events** - Accept both ETH and ERC20
-- **Protocol Fee Support** - Platform fees work with all currencies
+- **Platform Fee Support** - Platform fees work with all currencies
 - **Automatic Splitting** - Revenue splits work across all payment types
 
 ## Private Events
@@ -287,11 +245,11 @@ EventParams memory params = EventParams({
     startTime: block.timestamp + 3600,
     venueName: "Private Residence",
     visibility: EventVisibility.INVITE_ONLY,
-    // ... other params
+    // ... other params including GPS coordinates
 });
 
-uint256 eventId = assemble.createEventWithLocation{value: PLATFORM_FEE}(
-    // ... params including GPS coordinates for private venue
+uint256 eventId = assemble.createEvent{value: PLATFORM_FEE}(
+    params, tiers, splits
 );
 
 // Invite specific guests
@@ -317,10 +275,10 @@ Platform fees (0-5%) enable sustainable ecosystem growth:
 assemble.purchaseTickets{value: ticketPrice}(eventId, 0, 1, venueAddress, 200);
 
 // Event platform gets 1.5% for promotion (USDC)
-assemble.purchaseTicketsWithERC20(eventId, 0, 1, USDC, platformAddress, 150);
+assemble.purchaseTicketsERC20(eventId, 0, 1, USDC, platformAddress, 150);
 
 // Cross-currency platform fees work seamlessly
-assemble.tipEventWithERC20(eventId, DAI, tipAmount, influencerAddress, 100);
+assemble.tipEventERC20(eventId, DAI, tipAmount, influencerAddress, 100);
 ```
 
 **Ecosystem Participants:**
@@ -333,7 +291,7 @@ assemble.tipEventWithERC20(eventId, DAI, tipAmount, influencerAddress, 100);
 
 ## Error Handling & User Experience
 
-V2.0 introduces consolidated error handling for better UX:
+Consolidated error handling for better UX:
 
 ```solidity
 // Consolidated error system
@@ -400,27 +358,21 @@ error ValidationError(); // Input validation failures
 ### Frontend Integration
 ```javascript
 // Create event with location
-const tx = await assemble.createEventWithLocation(
-  organizer,
-  startTime,
-  "Madison Square Garden",
-  primaryRecipient,
-  secondaryRecipient,
-  7000, 3000,
-  metadataURI,
+const tx = await assemble.createEvent(
+  params,  // includes latitude/longitude
   ticketTiers,
   paymentSplits,
-  40743100,  // NYC lat * 1e6
-  -73959700, // NYC lng * 1e6
   { value: platformFee }
 );
 
 // Purchase with USDC
 await usdc.approve(assemble.address, ticketPrice);
-await assemble.purchaseTicketsWithERC20(eventId, tierId, quantity, usdc.address);
+await assemble.purchaseTicketsERC20(eventId, tierId, quantity, usdc.address);
 
 // Check venue credentials
-const hasCredential = await assemble.hasVenueCredential(organizer, "Madison Square Garden");
+const venueHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(venueName));
+const credTokenId = await assemble.generateTokenId(4, 0, venueHash, 0); // TokenType.VENUE_CRED = 4
+const hasCredential = await assemble.balanceOf(organizer, credTokenId);
 ```
 
 ### API Integration
@@ -436,9 +388,10 @@ const prices = {
 };
 
 // Venue reputation display
+const venueHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(venueName));
 const venueStats = {
-  eventCount: await assemble.getVenueEventCount(venueName),
-  credentials: await assemble.hasVenueCredential(organizer, venueName)
+  eventCount: await assemble.venueEventCount(venueHash),
+  hasCredential: await assemble.balanceOf(organizer, credTokenId) > 0
 };
 ```
 
@@ -446,7 +399,7 @@ const venueStats = {
 
 ### 🌐 Multi-Chain Deployment
 
-Assemble Protocol V2.0 is deployed with **identical addresses** across multiple networks using CREATE2:
+Assemble Protocol is deployed with **identical addresses** across multiple networks using CREATE2:
 
 **Contract Address (All Networks):**
 - **Assemble**: `0x00000000000000000000000000000000000000000` *(Vanity address pending)*
@@ -472,19 +425,19 @@ forge script script/Deploy.s.sol --rpc-url $MAINNET_RPC_URL --broadcast --verify
 
 ## Roadmap
 
-### V2.1 - Advanced Features (Q1 2025)
+### Phase 1 - Advanced Features (Q1 2025)
 - **NFT Integration** - ERC-721 ticket support
 - **Subscription Events** - Recurring event series
 - **Dynamic Pricing** - Time-based and demand-based pricing
 - **Enhanced Analytics** - Event performance metrics
 
-### V2.2 - Ecosystem Expansion (Q2 2025)  
+### Phase 2 - Ecosystem Expansion (Q2 2025)  
 - **Cross-Chain Bridge** - Multi-chain event coordination
 - **DAO Integration** - Governance token for protocol decisions
 - **Advanced Venues** - Venue staking and reputation systems
 - **Mobile SDK** - Native mobile app integration
 
-### V3.0 - AI & Automation (Q3 2025)
+### Phase 3 - AI & Automation (Q3 2025)
 - **AI Event Matching** - Personalized event recommendations
 - **Automated Check-ins** - QR codes and NFC integration
 - **Smart Contracts** - Event automation and conditional logic
@@ -522,4 +475,4 @@ MIT License - see [LICENSE](./LICENSE) for details.
 
 **Built with ❤️ for the onchain event ecosystem**
 
-*Assemble Protocol V2.0 - Where events meet the future of web3*
+*Assemble Protocol - Where events meet the future of web3*
