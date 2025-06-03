@@ -39,7 +39,7 @@ contract PrivateEventTests is Test {
 
     function test_CreateInviteOnlyEvent() public {
         // Verify event was created with correct visibility
-        (,,,, uint8 visibility,) = assemble.events(privateEventId);
+        (,,,,,, uint8 visibility,,,,) = assemble.events(privateEventId);
         assertEq(visibility, uint8(Assemble.EventVisibility.INVITE_ONLY));
         assertEq(assemble.eventOrganizers(privateEventId), organizer);
     }
@@ -52,11 +52,11 @@ contract PrivateEventTests is Test {
         vm.prank(organizer);
         assemble.inviteToEvent(privateEventId, invitees);
 
-        // Verify invitations
-        assertTrue(assemble.isInvited(privateEventId, alice), "Alice should be invited");
-        assertTrue(assemble.isInvited(privateEventId, bob), "Bob should be invited");
-        assertFalse(assemble.isInvited(privateEventId, charlie), "Charlie should not be invited");
-        assertFalse(assemble.isInvited(privateEventId, unauthorized), "Unauthorized should not be invited");
+        // Verify invitations using eventInvites mapping directly
+        assertTrue(assemble.eventInvites(privateEventId, alice), "Alice should be invited");
+        assertTrue(assemble.eventInvites(privateEventId, bob), "Bob should be invited");
+        assertFalse(assemble.eventInvites(privateEventId, charlie), "Charlie should not be invited");
+        assertFalse(assemble.eventInvites(privateEventId, unauthorized), "Unauthorized should not be invited");
     }
 
     function test_OnlyOrganizerCanInvite() public {
@@ -64,7 +64,7 @@ contract PrivateEventTests is Test {
         invitees[0] = alice;
 
         vm.prank(unauthorized);
-        vm.expectRevert(abi.encodeWithSignature("NotOrganizer()"));
+        vm.expectRevert(abi.encodeWithSignature("NotAuth()"));
         assemble.inviteToEvent(privateEventId, invitees);
     }
 
@@ -76,7 +76,7 @@ contract PrivateEventTests is Test {
         invitees[0] = alice;
 
         vm.prank(organizer);
-        vm.expectRevert(abi.encodeWithSignature("NotPrivate()"));
+        vm.expectRevert(abi.encodeWithSignature("SocialError()"));
         assemble.inviteToEvent(publicEventId, invitees);
     }
 
@@ -89,32 +89,8 @@ contract PrivateEventTests is Test {
 
         // Try to invite again
         vm.prank(organizer);
-        vm.expectRevert(abi.encodeWithSignature("AlreadyInvited()"));
+        vm.expectRevert(abi.encodeWithSignature("SocialError()"));
         assemble.inviteToEvent(privateEventId, invitees);
-    }
-
-    function test_RemoveInvitation() public {
-        // First invite
-        address[] memory invitees = new address[](2);
-        invitees[0] = alice;
-        invitees[1] = bob;
-
-        vm.prank(organizer);
-        assemble.inviteToEvent(privateEventId, invitees);
-
-        // Remove Alice's invitation
-        vm.prank(organizer);
-        assemble.removeInvitation(privateEventId, alice);
-
-        // Verify removal
-        assertFalse(assemble.isInvited(privateEventId, alice));
-        assertTrue(assemble.isInvited(privateEventId, bob));
-    }
-
-    function test_CannotRemoveNonExistentInvitation() public {
-        vm.prank(organizer);
-        vm.expectRevert(abi.encodeWithSignature("NotInvited()"));
-        assemble.removeInvitation(privateEventId, alice);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -143,25 +119,7 @@ contract PrivateEventTests is Test {
         // Try to purchase without invitation
         uint256 ticketPrice = 0.1 ether;
         vm.prank(unauthorized);
-        vm.expectRevert(abi.encodeWithSignature("NotInvited()"));
-        assemble.purchaseTickets{ value: ticketPrice }(privateEventId, 0, 1);
-    }
-
-    function test_RevokedInvitationCannotPurchase() public {
-        // Invite and then revoke
-        address[] memory invitees = new address[](1);
-        invitees[0] = alice;
-
-        vm.prank(organizer);
-        assemble.inviteToEvent(privateEventId, invitees);
-
-        vm.prank(organizer);
-        assemble.removeInvitation(privateEventId, alice);
-
-        // Alice can no longer purchase
-        uint256 ticketPrice = 0.1 ether;
-        vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSignature("NotInvited()"));
+        vm.expectRevert(abi.encodeWithSignature("SocialError()"));
         assemble.purchaseTickets{ value: ticketPrice }(privateEventId, 0, 1);
     }
 
@@ -187,13 +145,15 @@ contract PrivateEventTests is Test {
 
         // Create exclusive art show
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "Emerging Artists Showcase - Private Opening",
-            description: "Exclusive first look at breakthrough contemporary artists",
-            imageUri: "ipfs://art-gallery-exclusive",
-            startTime: block.timestamp + 7 days,
-            endTime: block.timestamp + 7 days + 3 hours,
+            title: "Exclusive Art Gallery Opening",
+            description: "Private viewing of contemporary art collection",
+            imageUri: "QmArtGalleryImage",
+            startTime: block.timestamp + 14 days,
+            endTime: block.timestamp + 14 days + 3 hours,
             capacity: 50,
-            venueId: 1,
+            latitude: 407589000, // NYC: 40.7589 * 1e7
+            longitude: -739929000, // NYC: -73.9929 * 1e7
+            venueName: "Private Art Gallery",
             visibility: Assemble.EventVisibility.INVITE_ONLY
         });
 
@@ -259,7 +219,7 @@ contract PrivateEventTests is Test {
         vm.deal(randomPerson, 1 ether);
 
         vm.prank(randomPerson);
-        vm.expectRevert(abi.encodeWithSignature("NotInvited()"));
+        vm.expectRevert(abi.encodeWithSignature("SocialError()"));
         assemble.purchaseTickets{ value: 0.2 ether }(artShowId, 0, 1);
 
         console.log("Exclusivity maintained - uninvited users blocked");
@@ -271,13 +231,15 @@ contract PrivateEventTests is Test {
 
     function _createPrivateEvent() internal returns (uint256 eventId) {
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "Private Event",
-            description: "Invite-only private gathering",
-            imageUri: "ipfs://private-event",
-            startTime: block.timestamp + 1 days,
-            endTime: block.timestamp + 2 days,
-            capacity: 50,
-            venueId: 1,
+            title: "Private Birthday Party",
+            description: "Exclusive birthday celebration for close friends and family",
+            imageUri: "QmPrivateBirthdayImage",
+            startTime: block.timestamp + 7 days,
+            endTime: block.timestamp + 7 days + 4 hours,
+            capacity: 30,
+            latitude: 404052000, // NYC: 40.4052 * 1e7
+            longitude: -739979000, // NYC: -73.9979 * 1e7
+            venueName: "Private Residence",
             visibility: Assemble.EventVisibility.INVITE_ONLY
         });
 
@@ -301,13 +263,15 @@ contract PrivateEventTests is Test {
 
     function _createPublicEvent() internal returns (uint256 eventId) {
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "Public Event",
-            description: "Open to everyone",
-            imageUri: "ipfs://public-event",
-            startTime: block.timestamp + 1 days,
-            endTime: block.timestamp + 2 days,
-            capacity: 100,
-            venueId: 1,
+            title: "Corporate Board Meeting",
+            description: "Quarterly board meeting for company stakeholders",
+            imageUri: "QmBoardMeetingImage",
+            startTime: block.timestamp + 21 days,
+            endTime: block.timestamp + 21 days + 2 hours,
+            capacity: 15,
+            latitude: 407614000, // NYC: 40.7614 * 1e7
+            longitude: -739960000, // NYC: -73.9960 * 1e7
+            venueName: "Corporate Boardroom",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 

@@ -32,14 +32,16 @@ contract BirthdayExampleTest is Test {
 
         // 1. Organizer creates birthday party with custom payment splits
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "Bob's 30th Birthday Bash!",
-            description: "Celebrating Bob's milestone birthday - tips go to Bob!",
-            imageUri: "ipfs://birthday-party",
-            startTime: block.timestamp + 1 days,
-            endTime: block.timestamp + 2 days,
-            capacity: 50,
-            venueId: 1,
-            visibility: Assemble.EventVisibility.PUBLIC
+            title: "Surprise Birthday Party",
+            description: "John's 30th surprise birthday celebration with cake, music, and fun!",
+            imageUri: "QmbWqxBEKC3P8tqsKc98xmWNzrzDtRLMiMPL8wBuTGsMnR",
+            startTime: block.timestamp + 7 days,
+            endTime: block.timestamp + 7 days + 4 hours,
+            capacity: 25,
+            latitude: 404052000, // NYC: 40.4052 * 1e7
+            longitude: -739979000, // NYC: -73.9979 * 1e7
+            venueName: "Madison Square Park",
+            visibility: Assemble.EventVisibility.PRIVATE
         });
 
         // Free party with payment splits directing tips to birthday person
@@ -153,13 +155,15 @@ contract BirthdayExampleTest is Test {
 
         // Create birthday event
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "Sarah's 25th Birthday Bash!",
-            description: "Come celebrate with cake, music, and great friends!",
-            imageUri: "ipfs://birthday-bash",
-            startTime: block.timestamp + 5 days,
-            endTime: block.timestamp + 5 days + 6 hours,
-            capacity: 30,
-            venueId: 1,
+            title: "Birthday Follow-up Event",
+            description: "Follow-up celebration",
+            imageUri: "QmbWqxBEKC3P8tqsKc98xmWNzrzDtRLMiMPL8wBuTGsMnR",
+            startTime: block.timestamp + 14 days,
+            endTime: block.timestamp + 14 days + 3 hours,
+            capacity: 15,
+            latitude: 404052000,
+            longitude: -739979000,
+            venueName: "Central Park",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
@@ -207,12 +211,8 @@ contract BirthdayExampleTest is Test {
         vm.prank(birthdayPerson);
         assemble.postComment(eventId, "OMG yes! I can't wait to hear your amazing voice!", 3);
 
-        // Friends like each other's comments
-        vm.prank(friend);
-        assemble.likeComment(1); // Like tipper's question
-
-        vm.prank(tipper);
-        assemble.likeComment(3); // Like friend's karaoke comment
+        // Friends respond to each other (Note: like system removed for optimization)
+        // Comments provide engagement through threading instead
 
         console.log("Friends are chatting and getting excited for the party!");
 
@@ -233,11 +233,22 @@ contract BirthdayExampleTest is Test {
         uint256[] memory comments = assemble.getEventComments(eventId);
         assertEq(comments.length, 6, "Should have 6 comments total");
 
-        // Verify some comments have likes
-        CommentLibrary.Comment memory likedComment = assemble.getComment(1);
-        assertGt(likedComment.likes, 0, "Comment should have likes");
+        // Note: Comment likes removed for bytecode optimization
+        // Threaded conversations provide sufficient community engagement
 
         console.log("Birthday party comments bring the community together!");
         console.log("Perfect integration of social features!");
+
+        // Add new comment from sister
+        address sister = makeAddr("sister");
+        vm.deal(sister, 1 ether);
+
+        vm.prank(sister);
+        assemble.postComment(eventId, "Let's do karaoke after dinner!", 0);
+
+        // Note: Comment liking system removed for bytecode optimization
+        // Comments still provide community engagement through threading
+
+        console.log("Family building excitement through comments");
     }
 }

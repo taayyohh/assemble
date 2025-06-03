@@ -35,13 +35,15 @@ contract DinnerExampleTest is Test {
 
         // Create exclusive dinner event
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "Chef Maria's 7-Course Tasting Menu",
-            description: "An intimate culinary journey featuring seasonal ingredients and perfect wine pairings.",
-            imageUri: "ipfs://chefs-table",
-            startTime: block.timestamp + 7 days,
-            endTime: block.timestamp + 7 days + 3 hours,
-            capacity: 16, // Intimate setting
-            venueId: 1,
+            title: "Intimate Italian Dinner",
+            description: "A small, cozy dinner featuring homemade pasta and local wines",
+            imageUri: "QmItalianDinnerImage",
+            startTime: block.timestamp + 3 days,
+            endTime: block.timestamp + 3 days + 3 hours,
+            capacity: 8,
+            latitude: 407608000, // NYC: 40.7608 * 1e7
+            longitude: -739970000, // NYC: -73.9970 * 1e7
+            venueName: "Cozy Italian Bistro",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
@@ -155,13 +157,14 @@ contract DinnerExampleTest is Test {
         console.log("Supporting culinary artistry!");
 
         // Dinner attendance
-        vm.warp(block.timestamp + 7 days);
+        vm.warp(block.timestamp + 3 days + 1 hours); // Event started 1 hour ago
 
         uint256 ticket1 = assemble.generateTokenId(Assemble.TokenType.EVENT_TICKET, eventId, 0, 1);
         vm.prank(diner1);
         assemble.checkIn(eventId);
 
-        assertTrue(assemble.hasAttended(diner1, eventId));
+        uint256 badgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
+        assertTrue(assemble.balanceOf(diner1, badgeId) > 0);
         console.log("Diner attended and received culinary experience badge!");
         console.log("Bon appetit! What an unforgettable meal!");
     }
@@ -172,13 +175,15 @@ contract DinnerExampleTest is Test {
 
         // Community dinner event
         Assemble.EventParams memory params = Assemble.EventParams({
-            title: "Neighborhood Table - March Edition",
-            description: "Monthly community dinner bringing neighbors together over great food and conversation.",
-            imageUri: "ipfs://community-dinner",
-            startTime: block.timestamp + 14 days,
-            endTime: block.timestamp + 14 days + 2 hours,
-            capacity: 50,
-            venueId: 1,
+            title: "French Cuisine Experience",
+            description: "Three-course French meal with wine pairings",
+            imageUri: "QmFrenchDinnerImage",
+            startTime: block.timestamp + 7 days,
+            endTime: block.timestamp + 7 days + 3 hours,
+            capacity: 12,
+            latitude: 407614000, // NYC: 40.7614 * 1e7
+            longitude: -739960000, // NYC: -73.9960 * 1e7
+            venueName: "Le Petit Restaurant",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 

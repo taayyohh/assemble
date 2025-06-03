@@ -45,7 +45,9 @@ contract DeploymentIntegrationTest is Test {
             startTime: block.timestamp + 2 days,
             endTime: block.timestamp + 3 days,
             capacity: 50,
-            venueId: 1,
+            latitude: 404052000, // NYC: 40.4052 * 1e7
+            longitude: -739979000, // NYC: -73.9979 * 1e7
+            venueName: "Alice's Birthday Venue",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
@@ -109,8 +111,8 @@ contract DeploymentIntegrationTest is Test {
         assemble.updateRSVP(eventId, SocialLibrary.RSVPStatus.GOING);
 
         // Check RSVP status directly instead of using getAttendees
-        assertEq(uint8(assemble.getUserRSVP(eventId, attendee1)), uint8(SocialLibrary.RSVPStatus.GOING));
-        assertEq(uint8(assemble.getUserRSVP(eventId, attendee2)), uint8(SocialLibrary.RSVPStatus.GOING));
+        assertEq(uint8(assemble.rsvps(eventId, attendee1)), uint8(SocialLibrary.RSVPStatus.GOING));
+        assertEq(uint8(assemble.rsvps(eventId, attendee2)), uint8(SocialLibrary.RSVPStatus.GOING));
 
         // 3. Ticket purchases with different scenarios
         console.log("3. Purchasing tickets...");
@@ -175,9 +177,13 @@ contract DeploymentIntegrationTest is Test {
         assemble.checkIn(eventId);
 
         // Verify attendance badges
-        assertTrue(assemble.hasAttended(attendee1, eventId));
-        assertTrue(assemble.hasAttended(attendee2, eventId));
-        assertTrue(assemble.hasAttended(attendee3, eventId));
+        uint256 badgeId1 = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
+        uint256 badgeId2 = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
+        uint256 badgeId3 = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
+        
+        assertTrue(assemble.balanceOf(attendee1, badgeId1) > 0);
+        assertTrue(assemble.balanceOf(attendee2, badgeId2) > 0);
+        assertTrue(assemble.balanceOf(attendee3, badgeId3) > 0);
 
         console.log("All attendees checked in and received badges");
 
@@ -208,9 +214,9 @@ contract DeploymentIntegrationTest is Test {
         console.log("7. Testing soulbound token restrictions...");
 
         uint256 badgeId = assemble.generateTokenId(Assemble.TokenType.ATTENDANCE_BADGE, eventId, 0, 0);
-
+        
         vm.prank(attendee1);
-        vm.expectRevert(abi.encodeWithSignature("Soulbound()"));
+        vm.expectRevert(abi.encodeWithSignature("SocialError()"));
         assemble.transfer(attendee1, attendee2, badgeId, 1);
 
         console.log("Soulbound tokens properly restricted");
@@ -285,7 +291,9 @@ contract DeploymentIntegrationTest is Test {
             startTime: block.timestamp + 1 days,
             endTime: block.timestamp + 2 days,
             capacity: 100,
-            venueId: 1,
+            latitude: 377826000, // SF: 37.7826 * 1e7
+            longitude: -1224241000, // SF: -122.4241 * 1e7
+            venueName: "Standard Test Venue",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 

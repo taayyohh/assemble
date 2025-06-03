@@ -1,0 +1,133 @@
+# Development files
+.eslintrc.*
+.gitignore
+.npmrc
+tsconfig.json
+tsup.config.ts
+vitest.config.ts
+
+# Testing files
+test/
+coverage/
+.vitest/
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+
+# Build tools and configs
+.github/
+scripts/
+docs/
+
+# Development dependencies artifacts
+node_modules/
+.pnpm-store/
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Editor and OS files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs and temp files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+tmp/
+temp/
+
+# Environment files
+.env*
+
+# Cache directories
+.cache/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# Source maps (optional - remove if you want to include them)
+*.map
+
+# Development artifacts
+.nyc_output
+.coverage
+
+# Git files
+.git/
+.gitattributes
+
+# Build artifacts
+cache/
+broadcast/
+.env*
+.vscode/
+node_modules/
+
+# Git
+.git/
+.gitignore
+.gitmodules
+
+# Development files
+test/
+script/
+lib/forge-std/
+docs/
+.github/
+
+# Test and script artifacts in out/
+out/**/*.t.sol/
+out/**/*Test.json
+out/**/*Script.json
+out/**/Test.json
+out/**/Vm.json
+out/**/VmSafe.json
+out/**/StdAssertions.json
+out/**/StdChains.json
+out/**/StdCheats.json
+out/**/StdCheatsSafe.json
+out/**/StdConstants.json
+out/**/stdError.json
+out/**/StdInvariant.json
+out/**/stdJson.json
+out/**/stdMath.json
+out/**/stdStorage.json
+out/**/stdStorageSafe.json
+out/**/StdStyle.json
+out/**/stdToml.json
+out/**/StdUtils.json
+out/**/Script.json
+out/**/console.json
+out/**/safeconsole.json
+out/**/CommonBase.json
+out/**/ScriptBase.json
+out/**/TestBase.json
+out/**/IMulticall3.json
+out/build-info/
+
+# Foundry
+foundry.toml
+slither.config.json
+
+# Temporary files
+*.tmp
+*.temp
+vanity-deployment.json
+DEPLOYMENT.md
+
+# macOS
+.DS_Store
+
+# IDE
+*.swp
+*.swo
+*~ 

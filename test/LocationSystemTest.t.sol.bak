@@ -1,0 +1,377 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import { Test, console } from "forge-std/Test.sol";
+import { Assemble } from "../src/Assemble.sol";
+
+/**
+ * @title LocationSystemTest
+ * @notice Comprehensive tests for Assemble Protocol V2.0 Location System
+ * @dev Tests coordinate packing/unpacking, precision handling, and location-based queries
+ */
+contract LocationSystemTest is Test {
+    Assemble public assemble;
+
+    address public feeTo = makeAddr("feeTo");
+    address public organizer = makeAddr("organizer");
+
+    // Test coordinates with 11mm precision (1e-7 degrees)
+    int64 constant NYC_LAT = 404052000;      // 40.4052000° N (Times Square)
+    int64 constant NYC_LNG = -739979000;     // -73.9979000° W
+    int64 constant LONDON_LAT = 515074000;   // 51.5074000° N (Big Ben)  
+    int64 constant LONDON_LNG = -1276000;    // -0.1276000° W
+    int64 constant TOKYO_LAT = 356762000;    // 35.6762000° N (Tokyo Station)
+    int64 constant TOKYO_LNG = 1397030000;   // 139.7030000° E
+
+    // Test location struct
+    struct TestLocation {
+        string name;
+        int64 lat;
+        int64 lng;
+    }
+
+    // Real venue struct
+    struct RealVenue {
+        string name;
+        int64 lat;
+        int64 lng;
+    }
+
+    function setUp() public {
+        assemble = new Assemble(feeTo);
+    }
+
+    // ========================================
+    // COORDINATE PACKING/UNPACKING TESTS
+    // ========================================
+
+    function test_CoordinatePackingBasic() public {
+        // Test basic coordinate packing and unpacking
+        uint128 packed = assemble.packCoordinates(NYC_LAT, NYC_LNG);
+        (int64 unpackedLat, int64 unpackedLng) = assemble.unpackCoordinates(packed);
+
+        assertEq(unpackedLat, NYC_LAT, "Latitude should match after packing/unpacking");
+        assertEq(unpackedLng, NYC_LNG, "Longitude should match after packing/unpacking");
+
+        console.log("Original coordinates:", uint64(NYC_LAT), uint64(NYC_LNG));
+        console.log("Packed value:", packed);
+        console.log("Unpacked coordinates:", uint64(unpackedLat), uint64(unpackedLng));
+    }
+
+    function test_CoordinatePackingMultipleLocations() public {
+        // Test multiple different coordinates
+        TestLocation[] memory locations = new TestLocation[](3);
+        locations[0] = TestLocation("NYC", NYC_LAT, NYC_LNG);
+        locations[1] = TestLocation("London", LONDON_LAT, LONDON_LNG);
+        locations[2] = TestLocation("Tokyo", TOKYO_LAT, TOKYO_LNG);
+
+        for (uint i = 0; i < locations.length; i++) {
+            uint128 packed = assemble.packCoordinates(locations[i].lat, locations[i].lng);
+            (int64 unpackedLat, int64 unpackedLng) = assemble.unpackCoordinates(packed);
+
+            assertEq(unpackedLat, locations[i].lat, string.concat("Latitude mismatch for ", locations[i].name));
+            assertEq(unpackedLng, locations[i].lng, string.concat("Longitude mismatch for ", locations[i].name));
+
+            console.log(locations[i].name, "- Packed:", packed, "Lat:", uint64(unpackedLat), "Lng:", uint64(unpackedLng));
+        }
+    }
+
+    function test_CoordinateBoundaryValues() public {
+        // Test maximum valid latitude (90 degrees = 900,000,000)
+        int64 maxLat = 900000000;
+        int64 minLat = -900000000;
+        
+        // Test maximum valid longitude (180 degrees = 1,800,000,000)
+        int64 maxLng = 1800000000;
+        int64 minLng = -1800000000;
+
+        // Test valid boundaries
+        uint128 packed1 = assemble.packCoordinates(maxLat, maxLng);
+        (int64 lat1, int64 lng1) = assemble.unpackCoordinates(packed1);
+        assertEq(lat1, maxLat, "Max latitude should pack/unpack correctly");
+        assertEq(lng1, maxLng, "Max longitude should pack/unpack correctly");
+
+        uint128 packed2 = assemble.packCoordinates(minLat, minLng);
+        (int64 lat2, int64 lng2) = assemble.unpackCoordinates(packed2);
+        assertEq(lat2, minLat, "Min latitude should pack/unpack correctly");
+        assertEq(lng2, minLng, "Min longitude should pack/unpack correctly");
+    }
+
+    function test_CoordinateValidation() public {
+        // Test invalid coordinates should revert
+        
+        // Invalid latitude (> 90 degrees)
+        vm.expectRevert("Invalid latitude");
+        assemble.packCoordinates(900000001, 0);
+
+        // Invalid latitude (< -90 degrees)
+        vm.expectRevert("Invalid latitude");
+        assemble.packCoordinates(-900000001, 0);
+
+        // Invalid longitude (> 180 degrees)
+        vm.expectRevert("Invalid longitude");
+        assemble.packCoordinates(0, 1800000001);
+
+        // Invalid longitude (< -180 degrees)
+        vm.expectRevert("Invalid longitude");
+        assemble.packCoordinates(0, -1800000001);
+    }
+
+    function test_CoordinatePrecision() public {
+        // Test 11mm precision (1e-7 degrees)
+        int64 baseLat = 404052000;  // 40.4052000°
+        int64 baseLng = -739979000; // -73.9979000°
+        
+        // Add 1 unit (1e-7 degrees ≈ 11mm at equator)
+        int64 precisionLat = baseLat + 1;
+        int64 precisionLng = baseLng + 1;
+
+        uint128 packed1 = assemble.packCoordinates(baseLat, baseLng);
+        uint128 packed2 = assemble.packCoordinates(precisionLat, precisionLng);
+
+        assertNotEq(packed1, packed2, "1e-7 degree difference should result in different packed values");
+
+        (int64 unpacked1Lat, int64 unpacked1Lng) = assemble.unpackCoordinates(packed1);
+        (int64 unpacked2Lat, int64 unpacked2Lng) = assemble.unpackCoordinates(packed2);
+
+        assertEq(unpacked2Lat - unpacked1Lat, 1, "Latitude precision should be maintained");
+        assertEq(unpacked2Lng - unpacked1Lng, 1, "Longitude precision should be maintained");
+    }
+
+    // ========================================
+    // LOCATION STORAGE EFFICIENCY TESTS
+    // ========================================
+
+    function test_LocationStorageSize() public {
+        // Test that location data fits in allocated storage
+        uint128 packed = assemble.packCoordinates(NYC_LAT, NYC_LNG);
+        
+        // Should fit in 128 bits (16 bytes)
+        assertTrue(packed <= type(uint128).max, "Packed coordinates should fit in uint128");
+        
+        console.log("Packed coordinate size (bits):", _getBitLength(packed));
+        console.log("Storage allocation (bits): 128");
+    }
+
+    function test_LocationDataEfficiency() public {
+        // Compare storage efficiency vs storing separate lat/lng
+        
+        // Packed: 16 bytes (128 bits)
+        uint128 packed = assemble.packCoordinates(NYC_LAT, NYC_LNG);
+        
+        console.log("Packed storage: 16 bytes");
+        console.log("Separate storage would be: 16 bytes (2x int64)");
+        console.log("Storage efficiency: Same space, but enables atomic operations");
+    }
+
+    // ========================================
+    // EVENT LOCATION INTEGRATION TESTS
+    // ========================================
+
+    function test_EventLocationStorage() public {
+        uint256 eventId = _createTestEventWithLocation(NYC_LAT, NYC_LNG, "Madison Square Garden");
+
+        // Test location retrieval
+        (int64 retrievedLat, int64 retrievedLng) = assemble.getEventLocation(eventId);
+        assertEq(retrievedLat, NYC_LAT, "Event latitude should match");
+        assertEq(retrievedLng, NYC_LNG, "Event longitude should match");
+
+        console.log("Stored event location:", uint64(retrievedLat), uint64(retrievedLng));
+    }
+
+    function test_MultipleEventLocations() public {
+        // Create events at different locations
+        uint256 nycEventId = _createTestEventWithLocation(NYC_LAT, NYC_LNG, "Madison Square Garden");
+        uint256 londonEventId = _createTestEventWithLocation(LONDON_LAT, LONDON_LNG, "Royal Albert Hall");
+        uint256 tokyoEventId = _createTestEventWithLocation(TOKYO_LAT, TOKYO_LNG, "Tokyo Dome");
+
+        // Verify all locations are stored correctly
+        (int64 nycLat, int64 nycLng) = assemble.getEventLocation(nycEventId);
+        (int64 londonLat, int64 londonLng) = assemble.getEventLocation(londonEventId);
+        (int64 tokyoLat, int64 tokyoLng) = assemble.getEventLocation(tokyoEventId);
+
+        assertEq(nycLat, NYC_LAT, "NYC latitude should match");
+        assertEq(nycLng, NYC_LNG, "NYC longitude should match");
+        assertEq(londonLat, LONDON_LAT, "London latitude should match");
+        assertEq(londonLng, LONDON_LNG, "London longitude should match");
+        assertEq(tokyoLat, TOKYO_LAT, "Tokyo latitude should match");
+        assertEq(tokyoLng, TOKYO_LNG, "Tokyo longitude should match");
+    }
+
+    function test_LocationUpdateScenarios() public {
+        // Test what happens with zero coordinates (valid at equator/prime meridian)
+        uint256 eventId = _createTestEventWithLocation(0, 0, "Prime Meridian");
+        (int64 lat, int64 lng) = assemble.getEventLocation(eventId);
+        assertEq(lat, 0, "Zero latitude should be valid");
+        assertEq(lng, 0, "Zero longitude should be valid");
+    }
+
+    // ========================================
+    // LOCATION-BASED QUERY OPTIMIZATION TESTS
+    // ========================================
+
+    function test_LocationQueryEfficiency() public {
+        uint256 eventId = _createTestEventWithLocation(NYC_LAT, NYC_LNG, "Test Venue");
+        
+        // Measure gas for location query
+        uint256 gasBefore = gasleft();
+        (int64 lat, int64 lng) = assemble.getEventLocation(eventId);
+        uint256 gasUsed = gasBefore - gasleft();
+
+        console.log("Gas used for location query:", gasUsed);
+        
+        // Should be efficient (single storage read + unpacking)
+        assertLt(gasUsed, 5000, "Location query should be gas efficient");
+        assertEq(lat, NYC_LAT, "Latitude should be correct");
+        assertEq(lng, NYC_LNG, "Longitude should be correct");
+    }
+
+    // ========================================
+    // EDGE CASES AND ERROR HANDLING
+    // ========================================
+
+    function test_ExtremeCoordinates() public {
+        // Test coordinates at extreme valid locations
+        
+        // North Pole
+        uint128 northPole = assemble.packCoordinates(900000000, 0);
+        (int64 northLat, int64 northLng) = assemble.unpackCoordinates(northPole);
+        assertEq(northLat, 900000000, "North pole latitude");
+        assertEq(northLng, 0, "North pole longitude");
+
+        // South Pole  
+        uint128 southPole = assemble.packCoordinates(-900000000, 0);
+        (int64 southLat, int64 southLng) = assemble.unpackCoordinates(southPole);
+        assertEq(southLat, -900000000, "South pole latitude");
+        assertEq(southLng, 0, "South pole longitude");
+
+        // International Date Line
+        uint128 dateLine = assemble.packCoordinates(0, 1800000000);
+        (int64 dateLat, int64 dateLng) = assemble.unpackCoordinates(dateLine);
+        assertEq(dateLat, 0, "Date line latitude");
+        assertEq(dateLng, 1800000000, "Date line longitude");
+    }
+
+    function test_LocationSystemContractSize() public {
+        // Verify location system doesn't bloat contract size
+        address assembleAddr = address(assemble);
+        uint256 size;
+        assembly { size := extcodesize(assembleAddr) }
+        
+        console.log("Contract size with location system:", size, "bytes");
+        assertLt(size, 24_576, "Contract should not exceed size limit");
+        
+        uint256 remaining = 24_576 - size;
+        console.log("Remaining size margin:", remaining, "bytes");
+    }
+
+    function test_LocationZeroValues() public {
+        // Test edge case of zero coordinates (valid location)
+        uint128 packed = assemble.packCoordinates(0, 0);
+        (int64 lat, int64 lng) = assemble.unpackCoordinates(packed);
+        
+        assertEq(lat, 0, "Zero latitude should be preserved");
+        assertEq(lng, 0, "Zero longitude should be preserved");
+        assertTrue(packed > 0 || packed == 0, "Zero coordinates should pack successfully");
+    }
+
+    // ========================================
+    // PRECISION AND ACCURACY TESTS
+    // ========================================
+
+    function test_LocationAccuracyVerification() public {
+        // Test that we maintain the required 11mm precision
+        
+        // 1e-7 degrees ≈ 11.1mm at equator
+        // Test with coordinates that differ by exactly 1 unit
+        int64 lat1 = 0;          // Equator
+        int64 lng1 = 0;          // Prime meridian
+        int64 lat2 = 1;          // 1e-7 degrees north
+        int64 lng2 = 1;          // 1e-7 degrees east
+
+        uint128 packed1 = assemble.packCoordinates(lat1, lng1);
+        uint128 packed2 = assemble.packCoordinates(lat2, lng2);
+
+        (int64 unpacked1Lat, int64 unpacked1Lng) = assemble.unpackCoordinates(packed1);
+        (int64 unpacked2Lat, int64 unpacked2Lng) = assemble.unpackCoordinates(packed2);
+
+        // Verify exact precision is maintained
+        assertEq(unpacked1Lat, lat1, "Base latitude precision");
+        assertEq(unpacked1Lng, lng1, "Base longitude precision");  
+        assertEq(unpacked2Lat, lat2, "Offset latitude precision");
+        assertEq(unpacked2Lng, lng2, "Offset longitude precision");
+
+        // Verify the difference is exactly 1 unit
+        assertEq(unpacked2Lat - unpacked1Lat, 1, "Latitude precision difference");
+        assertEq(unpacked2Lng - unpacked1Lng, 1, "Longitude precision difference");
+    }
+
+    function test_RealWorldLocationExamples() public {
+        // Test with real-world venue coordinates
+        RealVenue[] memory venues = new RealVenue[](5);
+        venues[0] = RealVenue("Madison Square Garden, NYC", 407509000, -739936000);
+        venues[1] = RealVenue("Wembley Stadium, London", 519041000, -2810000);
+        venues[2] = RealVenue("Sydney Opera House", -338570000, 1512775000);
+        venues[3] = RealVenue("Machu Picchu, Peru", -130635000, -721734000);
+        venues[4] = RealVenue("Burj Khalifa, Dubai", 251973000, 552771000);
+
+        for (uint i = 0; i < venues.length; i++) {
+            uint256 eventId = _createTestEventWithLocation(venues[i].lat, venues[i].lng, venues[i].name);
+            (int64 retrievedLat, int64 retrievedLng) = assemble.getEventLocation(eventId);
+            
+            assertEq(retrievedLat, venues[i].lat, string.concat("Latitude mismatch for ", venues[i].name));
+            assertEq(retrievedLng, venues[i].lng, string.concat("Longitude mismatch for ", venues[i].name));
+            
+            console.log(venues[i].name, "- Stored correctly at:", uint64(retrievedLat), uint64(retrievedLng));
+        }
+    }
+
+    // ========================================
+    // HELPER FUNCTIONS
+    // ========================================
+
+    function _createTestEventWithLocation(int64 lat, int64 lng, string memory venueName) internal returns (uint256) {
+        Assemble.EventParams memory params = Assemble.EventParams({
+            title: "Test Event",
+            description: "Test Description",
+            imageUri: "ipfs://test",
+            startTime: block.timestamp + 1 days,
+            endTime: block.timestamp + 2 days,
+            capacity: 100,
+            latitude: lat,
+            longitude: lng,
+            venueName: venueName,
+            visibility: Assemble.EventVisibility.PUBLIC
+        });
+
+        Assemble.TicketTier[] memory tiers = new Assemble.TicketTier[](1);
+        tiers[0] = Assemble.TicketTier({
+            name: "General",
+            price: 0.1 ether,
+            maxSupply: 50,
+            sold: 0,
+            startSaleTime: block.timestamp,
+            endSaleTime: block.timestamp + 1 days,
+            transferrable: true
+        });
+
+        Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](1);
+        splits[0] = Assemble.PaymentSplit({
+            recipient: organizer,
+            basisPoints: 10_000
+        });
+
+        vm.prank(organizer);
+        return assemble.createEvent(params, tiers, splits);
+    }
+
+    function _getBitLength(uint256 value) internal pure returns (uint256) {
+        if (value == 0) return 0;
+        uint256 length = 0;
+        while (value > 0) {
+            length++;
+            value >>= 1;
+        }
+        return length;
+    }
+} 

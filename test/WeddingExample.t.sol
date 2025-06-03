@@ -35,12 +35,14 @@ contract WeddingExampleTest is Test {
         // Create wedding event
         Assemble.EventParams memory params = Assemble.EventParams({
             title: "Sarah & Michael's Wedding",
-            description: "Join us as we celebrate our love! Your presence is the greatest gift.",
-            imageUri: "ipfs://wedding-invitation",
-            startTime: block.timestamp + 60 days,
-            endTime: block.timestamp + 60 days + 8 hours,
+            description: "Join us for our special day! Ceremony at 4pm, reception to follow",
+            imageUri: "QmWeddingImage",
+            startTime: block.timestamp + 30 days,
+            endTime: block.timestamp + 30 days + 8 hours,
             capacity: 150,
-            venueId: 1,
+            latitude: 377826000, // SF: 37.7826 * 1e7
+            longitude: -1224241000, // SF: -122.4241 * 1e7
+            venueName: "Garden Wedding Venue",
             visibility: Assemble.EventVisibility.INVITE_ONLY
         });
 
@@ -129,8 +131,8 @@ contract WeddingExampleTest is Test {
         console.log("  Guest 3: Confirmed attendance");
 
         // Check RSVP status directly
-        assertEq(uint8(assemble.getUserRSVP(eventId, guest1)), uint8(SocialLibrary.RSVPStatus.GOING));
-        assertEq(uint8(assemble.getUserRSVP(eventId, guest2)), uint8(SocialLibrary.RSVPStatus.GOING));
+        assertEq(uint8(assemble.rsvps(eventId, guest1)), uint8(SocialLibrary.RSVPStatus.GOING));
+        assertEq(uint8(assemble.rsvps(eventId, guest2)), uint8(SocialLibrary.RSVPStatus.GOING));
 
         // Guests send wedding gifts via tips (this works perfectly!)
         vm.prank(guest1);
@@ -165,7 +167,9 @@ contract WeddingExampleTest is Test {
             startTime: block.timestamp + 30 days,
             endTime: block.timestamp + 90 days,
             capacity: 200,
-            venueId: 0, // Virtual registry
+            latitude: 0, // Virtual registry
+            longitude: 0, // Virtual registry
+            venueName: "Virtual Wedding Registry",
             visibility: Assemble.EventVisibility.PUBLIC
         });
 
