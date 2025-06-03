@@ -4,40 +4,40 @@ A next-generation singleton smart contract protocol for onchain event management
 
 *Built with ERC-6909 multi-token standard, EIP-1153 transient storage, soulbound credentials, and advanced venue management.*
 
-## 🚀 Features
+## Features
 
-### 🎯 **Core Event Management**
+### Core Event Management
 - **Multi-Tier Ticketing** - Configurable pricing, capacity limits, and payment splits
 - **Location Integration** - GPS coordinate storage with efficient data packing
 - **Venue Credential System** - Soulbound tokens for organizers with venue experience
 - **Multi-Currency Support** - ETH and ERC20 token payments (USDC, DAI, etc.)
 - **Advanced Refund System** - Automatic refunds for cancelled events with 90-day claim window
 
-### 🔐 **Privacy & Access Control**
+### Privacy & Access Control
 - **Private Events** - Invite-only events with curated guest lists
 - **Flexible Visibility** - Public, private, and invite-only event types
 - **Social Graph** - Friends, RSVPs, and social discovery with onchain coordination
 - **Group Check-ins** - Delegate check-in functionality for group ticket purchases
 
-### 💰 **Advanced Payment Features**
+### Advanced Payment Features
 - **Platform Fees** - Optional 0-5% referral fees to incentivize ecosystem growth
 - **ERC20 Payments** - Support for stablecoins and major tokens
 - **Payment Splits** - Automatic revenue distribution to multiple recipients
 - **Pull Payment Pattern** - Secure fund distribution with withdrawal mechanism
 
-### 🏟️ **Venue & Location System**
+### Venue & Location System
 - **GPS Coordinate Storage** - Precise location data with efficient packing
 - **Venue Hash System** - Efficient venue identification and tracking
 - **Venue Credentials** - Soulbound reputation tokens for experienced organizers
 - **Location-Based Discovery** - Events searchable by geographic location
 
-### 🎫 **Token & Badge System**
+### Token & Badge System
 - **ERC-6909 Multi-Token** - Efficient batch operations for tickets and badges
 - **Transferrable Tickets** - Standard event tickets with resale capability
 - **Soulbound Badges** - Non-transferable attendance and organizer credentials
 - **Venue Credentials** - Permanent reputation tokens for venue organizers
 
-### 💬 **Social Features**
+### Social Features
 - **Comment System** - Threaded event discussions with moderation controls
 - **RSVP Tracking** - Social commitment and attendance prediction
 - **Friend Network** - Social connections for event discovery
@@ -311,15 +311,15 @@ error ValidationError(); // Input validation failures
 ## Security & Testing
 
 ### Comprehensive Test Suite (196 Tests - 100% Pass Rate)
-- **📊 Core Functionality** - 40+ tests covering all primary features
-- **🔒 Security Tests** - 17 tests for attack vectors and edge cases  
-- **🎯 Edge Case Tests** - 22 tests for boundary conditions
-- **🎲 Fuzz Tests** - 15 property-based tests (1000 runs each)
-- **🔄 Invariant Tests** - 8 stateful tests (256 runs each)
-- **🌐 Scenario Tests** - 25 real-world usage patterns
-- **🔐 Private Event Tests** - 12 access control and privacy tests
-- **📍 Location Tests** - 10 GPS and venue system tests
-- **💰 ERC20 Payment Tests** - 15 multi-currency transaction tests
+- **Core Functionality** - 40+ tests covering all primary features
+- **Security Tests** - 17 tests for attack vectors and edge cases  
+- **Edge Case Tests** - 22 tests for boundary conditions
+- **Fuzz Tests** - 15 property-based tests (1000 runs each)
+- **Invariant Tests** - 8 stateful tests (256 runs each)
+- **Scenario Tests** - 25 real-world usage patterns
+- **Private Event Tests** - 12 access control and privacy tests
+- **Location Tests** - 10 GPS and venue system tests
+- **ERC20 Payment Tests** - 15 multi-currency transaction tests
 
 ### Security Features  
 - **Static Analysis Clean** - Zero issues with Slither
@@ -337,7 +337,7 @@ error ValidationError(); // Input validation failures
 - **Batch Operations** - ERC-6909 multi-token efficiency
 - **View Function Optimization** - Direct mapping access patterns
 
-⚠️ **This protocol has not been audited. Use at your own risk.**
+**This protocol has not been audited. Use at your own risk.**
 
 ## Gas Usage
 
@@ -397,7 +397,7 @@ const venueStats = {
 
 ## Deployment
 
-### 🌐 Multi-Chain Deployment
+### Multi-Chain Deployment
 
 Assemble Protocol is deployed with **identical addresses** across multiple networks using CREATE2:
 
@@ -405,11 +405,11 @@ Assemble Protocol is deployed with **identical addresses** across multiple netwo
 - **Assemble**: `0x00000000000000000000000000000000000000000` *(Vanity address pending)*
 
 **Target Networks:**
-- ✅ Ethereum Mainnet (Chain ID: 1)
-- ✅ Sepolia Testnet (Chain ID: 11155111)
-- 🎯 World Chain Mainnet (Chain ID: 480) 
-- 🎯 Flow EVM Mainnet (Chain ID: 747)
-- 🎯 Base Mainnet (Chain ID: 8453)
+- Ethereum Mainnet (Chain ID: 1)
+- Sepolia Testnet (Chain ID: 11155111)
+- World Chain Mainnet (Chain ID: 480) 
+- Flow EVM Mainnet (Chain ID: 747)
+- Base Mainnet (Chain ID: 8453)
 
 ### Vanity Address Deployment
 ```bash
@@ -422,26 +422,6 @@ forge script script/Deploy.s.sol --rpc-url $SEPOLIA_RPC_URL --broadcast --verify
 # Deploy to Mainnet
 forge script script/Deploy.s.sol --rpc-url $MAINNET_RPC_URL --broadcast --verify
 ```
-
-## Roadmap
-
-### Phase 1 - Advanced Features (Q1 2025)
-- **NFT Integration** - ERC-721 ticket support
-- **Subscription Events** - Recurring event series
-- **Dynamic Pricing** - Time-based and demand-based pricing
-- **Enhanced Analytics** - Event performance metrics
-
-### Phase 2 - Ecosystem Expansion (Q2 2025)  
-- **Cross-Chain Bridge** - Multi-chain event coordination
-- **DAO Integration** - Governance token for protocol decisions
-- **Advanced Venues** - Venue staking and reputation systems
-- **Mobile SDK** - Native mobile app integration
-
-### Phase 3 - AI & Automation (Q3 2025)
-- **AI Event Matching** - Personalized event recommendations
-- **Automated Check-ins** - QR codes and NFC integration
-- **Smart Contracts** - Event automation and conditional logic
-- **Metaverse Integration** - Virtual and hybrid event support
 
 ## Contributing
 
@@ -473,6 +453,6 @@ MIT License - see [LICENSE](./LICENSE) for details.
 
 ---
 
-**Built with ❤️ for the onchain event ecosystem**
+**Built with love for the onchain event ecosystem**
 
 *Assemble Protocol - Where events meet the future of web3*
