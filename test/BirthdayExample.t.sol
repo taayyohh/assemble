@@ -49,7 +49,7 @@ contract BirthdayExampleTest is Test {
         tiers[0] = Assemble.TicketTier({
             name: "Free Entry",
             price: 0,
-            maxSupply: 50,
+            maxSupply: 25,
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 1 days,
@@ -171,7 +171,7 @@ contract BirthdayExampleTest is Test {
         tiers[0] = Assemble.TicketTier({
             name: "Party Guest",
             price: 0, // Free birthday party
-            maxSupply: 30,
+            maxSupply: 15,
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 4 days,

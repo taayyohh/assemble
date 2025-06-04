@@ -51,7 +51,7 @@ contract MusicShowExampleTest is Test {
         tiers[0] = Assemble.TicketTier({
             name: "General Admission",
             price: 0.05 ether, // $75
-            maxSupply: 700,
+            maxSupply: 70, // Changed from 700 to fit capacity (70+30+15+5=120)
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 13 days,
@@ -60,7 +60,7 @@ contract MusicShowExampleTest is Test {
         tiers[1] = Assemble.TicketTier({
             name: "Reserved Seating",
             price: 0.08 ether, // $120
-            maxSupply: 200,
+            maxSupply: 30, // Changed from 200 to fit capacity
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 13 days,
@@ -69,7 +69,7 @@ contract MusicShowExampleTest is Test {
         tiers[2] = Assemble.TicketTier({
             name: "VIP Experience",
             price: 0.15 ether, // $225 - includes meet & greet
-            maxSupply: 80,
+            maxSupply: 15, // Changed from 80 to fit capacity
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 13 days,
@@ -78,7 +78,7 @@ contract MusicShowExampleTest is Test {
         tiers[3] = Assemble.TicketTier({
             name: "Platinum Package",
             price: 0.3 ether, // $450 - backstage, signed items, photo
-            maxSupply: 20,
+            maxSupply: 5, // Changed from 20 to fit capacity
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 13 days,

@@ -188,7 +188,7 @@ contract TheatreExampleTest is Test {
         tiers[0] = Assemble.TicketTier({
             name: "Individual Season Pass",
             price: 0.4 ether, // $600 for full season
-            maxSupply: 80,
+            maxSupply: 20,
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 29 days,
@@ -197,7 +197,7 @@ contract TheatreExampleTest is Test {
         tiers[1] = Assemble.TicketTier({
             name: "Family Season Pass",
             price: 0.7 ether, // $1000 for family
-            maxSupply: 20,
+            maxSupply: 5,
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 29 days,

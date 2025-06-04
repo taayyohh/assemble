@@ -51,7 +51,7 @@ contract ProtestExampleTest is Test {
         tiers[0] = Assemble.TicketTier({
             name: "March Participant",
             price: 0, // Free to attend
-            maxSupply: 9000,
+            maxSupply: 4000, // Changed from 9000 to fit capacity (4000+500+300+200=5000)
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 13 days,
@@ -60,7 +60,7 @@ contract ProtestExampleTest is Test {
         tiers[1] = Assemble.TicketTier({
             name: "Support Organizers",
             price: 0.01 ether, // $15 to cover organizing costs
-            maxSupply: 500,
+            maxSupply: 500, // Keeping as is to fit total
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 13 days,
@@ -69,7 +69,7 @@ contract ProtestExampleTest is Test {
         tiers[2] = Assemble.TicketTier({
             name: "Fund Legal Observers",
             price: 0.03 ether, // $50 for legal support
-            maxSupply: 300,
+            maxSupply: 300, // Keeping as is to fit total
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 13 days,
@@ -78,7 +78,7 @@ contract ProtestExampleTest is Test {
         tiers[3] = Assemble.TicketTier({
             name: "Climate Action Sponsor",
             price: 0.1 ether, // $150 major supporter
-            maxSupply: 200,
+            maxSupply: 200, // Keeping as is to fit total
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 13 days,
@@ -210,7 +210,7 @@ contract ProtestExampleTest is Test {
         tiers[0] = Assemble.TicketTier({
             name: "Rally Attendee",
             price: 0, // Free participation
-            maxSupply: 4500,
+            maxSupply: 100, // Changed from 4500 to fit capacity (100+70+30=200)
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 6 days,
@@ -219,7 +219,7 @@ contract ProtestExampleTest is Test {
         tiers[1] = Assemble.TicketTier({
             name: "Bail Fund Support",
             price: 0.05 ether, // $75 bail fund contribution
-            maxSupply: 400,
+            maxSupply: 70, // Changed from 400 to fit capacity
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 6 days,
@@ -228,7 +228,7 @@ contract ProtestExampleTest is Test {
         tiers[2] = Assemble.TicketTier({
             name: "Movement Builder",
             price: 0.2 ether, // $300 major organizer support
-            maxSupply: 100,
+            maxSupply: 30, // Changed from 100 to fit capacity
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 6 days,

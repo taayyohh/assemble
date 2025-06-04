@@ -395,14 +395,22 @@ contract Assemble {
 
         // Store ticket tiers
         uint256 tiersLength = tiers.length;
+        uint256 totalTierCapacity = 0;
         for (uint256 i = 0; i < tiersLength;) {
             if (tiers[i].maxSupply == 0) revert NoSupply();
             if (tiers[i].startSaleTime > tiers[i].endSaleTime) revert BadTiming();
+            
+            // Accumulate total tier capacity to validate against event capacity
+            totalTierCapacity += tiers[i].maxSupply;
+            
             ticketTiers[eventId][i] = tiers[i];
             unchecked {
                 ++i;
             }
         }
+
+        // Validate total tier capacity doesn't exceed event capacity
+        if (totalTierCapacity > params.capacity) revert BadPayment();
 
         // Store payment splits
         uint256 splitsLength = splits.length;

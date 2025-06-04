@@ -1,9 +1,0 @@
-{
-  "address": "0x0000000cecb6213dc7ed6b55e85b04f9f8dc4697",
-  "salt": "0x727eec5290aa0d5678e00abb4965829b934927448fdae039fc24d58ecd5b7dfb",
-  "deployer": "0xc1951eF408265A3b90d07B0BE030e63CCc7da6c6",
-  "initCodeHash": "0xbaaa1540c8165a8bdc5b05c6b26a7d2625498ced9ab36dafb4904da4b1364ae4",
-  "attempts": 48348549,
-  "timeSeconds": 502,
-  "timestamp": "2025-05-31T13:10:36.709Z"
-}

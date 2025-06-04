@@ -428,7 +428,7 @@ contract SecurityTests is Test {
             imageUri: "QmSecurityTestImage1",
             startTime: block.timestamp + 1 days,
             endTime: block.timestamp + 2 days,
-            capacity: 100,
+            capacity: capacity,
             latitude: 404052000, // NYC: 40.4052 * 1e7
             longitude: -739979000, // NYC: -73.9979 * 1e7
             venueName: "Security Test Venue 1",

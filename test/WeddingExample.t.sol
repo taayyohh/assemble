@@ -51,7 +51,7 @@ contract WeddingExampleTest is Test {
         tiers[0] = Assemble.TicketTier({
             name: "Wedding Guest",
             price: 0, // Free attendance
-            maxSupply: 120,
+            maxSupply: 100, // Changed from 120 to fit capacity
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 45 days,
@@ -60,7 +60,7 @@ contract WeddingExampleTest is Test {
         tiers[1] = Assemble.TicketTier({
             name: "Gift Contribution - Small",
             price: 0.05 ether, // $75 gift equivalent
-            maxSupply: 50,
+            maxSupply: 30, // Changed from 50 to fit capacity
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 45 days,
@@ -69,7 +69,7 @@ contract WeddingExampleTest is Test {
         tiers[2] = Assemble.TicketTier({
             name: "Gift Contribution - Generous",
             price: 0.15 ether, // $225 gift equivalent
-            maxSupply: 30,
+            maxSupply: 15, // Changed from 30 to fit capacity
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 45 days,
@@ -78,7 +78,7 @@ contract WeddingExampleTest is Test {
         tiers[3] = Assemble.TicketTier({
             name: "Honeymoon Sponsor",
             price: 0.5 ether, // $750 honeymoon contribution
-            maxSupply: 10,
+            maxSupply: 5, // Changed from 10 to fit capacity (total now 100+30+15+5=150)
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 45 days,

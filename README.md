@@ -397,30 +397,57 @@ const venueStats = {
 
 ## Deployment
 
-### Multi-Chain Deployment
+### Live Deployments
 
-Assemble Protocol is deployed with **identical addresses** across multiple networks using CREATE2:
+Assemble Protocol is deployed with **identical vanity addresses** across multiple networks using CREATE2:
 
-**Contract Address (All Networks):**
-- **Assemble**: `0x00000000000000000000000000000000000000000` *(Vanity address pending)*
+**Mainnet (Chain ID: 1):**
+- **Assemble**: `0x000000000a020d45fFc5cfcF7B28B5020ddd6a85` ✅ [Verified](https://etherscan.io/address/0x000000000a020d45fFc5cfcF7B28B5020ddd6a85)
+- **SocialLibrary**: `0xebE033f26d5CAb84F5C174C882e2e036F59FAD55` ✅ [Verified](https://etherscan.io/address/0xebE033f26d5CAb84F5C174C882e2e036F59FAD55)
 
-**Target Networks:**
-- Ethereum Mainnet (Chain ID: 1)
-- Sepolia Testnet (Chain ID: 11155111)
-- World Chain Mainnet (Chain ID: 480) 
-- Flow EVM Mainnet (Chain ID: 747)
-- Base Mainnet (Chain ID: 8453)
+**Sepolia Testnet (Chain ID: 11155111):**
+- **Assemble**: `0x000000000a020d45fFc5cfcF7B28B5020ddd6a85` ✅ [Verified](https://sepolia.etherscan.io/address/0x000000000a020d45fFc5cfcF7B28B5020ddd6a85)
+- **SocialLibrary**: `0xebE033f26d5CAb84F5C174C882e2e036F59FAD55` ✅ [Verified](https://sepolia.etherscan.io/address/0xebE033f26d5CAb84F5C174C882e2e036F59FAD55)
 
-### Vanity Address Deployment
+### Deploying to Other Chains
+
+The protocol can be deployed to any EVM-compatible chain while maintaining the same vanity addresses using CREATE2.
+
+#### Prerequisites
 ```bash
-# Find vanity address with 11 zeros
-cast create2 --starts-with 00000000000 --case-sensitive --init-code-hash <HASH>
+# Install dependencies
+forge install
 
-# Deploy to Sepolia
-forge script script/Deploy.s.sol --rpc-url $SEPOLIA_RPC_URL --broadcast --verify
+# Set environment variables
+export PRIVATE_KEY="your_private_key"
+export ETHERSCAN_API_KEY="your_etherscan_api_key"
+export RPC_URL="your_target_chain_rpc"
+```
 
-# Deploy to Mainnet
-forge script script/Deploy.s.sol --rpc-url $MAINNET_RPC_URL --broadcast --verify
+#### Deployment Process
+```bash
+# 1. Deploy SocialLibrary using Immutable CREATE2 Factory
+forge script script/DeploySocialLibrary.s.sol --rpc-url $RPC_URL --broadcast
+
+# 2. Deploy Assemble contract with library linking
+forge script script/DeployAssemble.s.sol --rpc-url $RPC_URL --broadcast
+
+# 3. Verify contracts on block explorer
+forge verify-contract <CONTRACT_ADDRESS> <CONTRACT_NAME> --rpc-url $RPC_URL --etherscan-api-key $ETHERSCAN_API_KEY
+```
+
+#### Key Requirements
+- **CREATE2 Factory**: Protocol uses Immutable CREATE2 Factory for deterministic deployments
+- **Library Linking**: SocialLibrary must be deployed first and linked during Assemble deployment
+- **Constructor**: Assemble takes a single parameter (`address _feeTo`)
+
+### Local Development
+```bash
+# Start local testnet
+anvil
+
+# Deploy locally
+forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast
 ```
 
 ## Contributing

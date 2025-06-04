@@ -52,7 +52,7 @@ contract DinnerExampleTest is Test {
         tiers[0] = Assemble.TicketTier({
             name: "Tasting Menu",
             price: 0.1 ether, // $150 per person
-            maxSupply: 12,
+            maxSupply: 4, // Changed from 12 to fit capacity
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 6 days,
@@ -61,7 +61,7 @@ contract DinnerExampleTest is Test {
         tiers[1] = Assemble.TicketTier({
             name: "Wine Pairing Add-on",
             price: 0.05 ether, // $75 wine pairing
-            maxSupply: 12,
+            maxSupply: 2, // Changed from 12 to fit capacity
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 6 days,
@@ -70,7 +70,7 @@ contract DinnerExampleTest is Test {
         tiers[2] = Assemble.TicketTier({
             name: "Chef's Table VIP",
             price: 0.2 ether, // $300 premium experience
-            maxSupply: 4, // Kitchen-side seating
+            maxSupply: 2, // Changed from 4 to fit capacity (total now 4+2+2=8)
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 6 days,
@@ -192,7 +192,7 @@ contract DinnerExampleTest is Test {
         tiers[0] = Assemble.TicketTier({
             name: "Community Dinner",
             price: 0.02 ether, // $30 affordable pricing
-            maxSupply: 40,
+            maxSupply: 6, // Changed from 40 to fit capacity
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 13 days,
@@ -201,7 +201,7 @@ contract DinnerExampleTest is Test {
         tiers[1] = Assemble.TicketTier({
             name: "Support Local Food",
             price: 0.04 ether, // $60 supporter tier
-            maxSupply: 8,
+            maxSupply: 4, // Changed from 8 to fit capacity
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 13 days,
@@ -210,7 +210,7 @@ contract DinnerExampleTest is Test {
         tiers[2] = Assemble.TicketTier({
             name: "Sponsor a Neighbor",
             price: 0.06 ether, // $90 - sponsors someone else's meal
-            maxSupply: 5,
+            maxSupply: 2, // Changed from 5 to fit capacity (total now 6+4+2=12)
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 13 days,

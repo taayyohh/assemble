@@ -83,6 +83,180 @@ contract EdgeCaseTests is Test {
         assertEq(assemble.pendingWithdrawals(feeTo), 0);
     }
 
+    function test_RevertWhen_TierCapacityExceedsEventCapacity() public {
+        // Event with capacity of 100
+        Assemble.EventParams memory params = Assemble.EventParams({
+            title: "Over-capacity Event",
+            description: "Testing capacity validation",
+            imageUri: "ipfs://over-capacity",
+            startTime: block.timestamp + 1 days,
+            endTime: block.timestamp + 2 days,
+            capacity: 100, // Total event capacity
+            latitude: 404052000,
+            longitude: -739979000,
+            venueName: "Test Venue",
+            visibility: Assemble.EventVisibility.PUBLIC
+        });
+
+        // Create tiers that sum to more than capacity (50 + 60 = 110 > 100)
+        Assemble.TicketTier[] memory tiers = new Assemble.TicketTier[](2);
+        tiers[0] = Assemble.TicketTier({
+            name: "General", 
+            price: 0.01 ether,
+            maxSupply: 50, // First tier: 50 tickets
+            sold: 0,
+            startSaleTime: block.timestamp,
+            endSaleTime: block.timestamp + 1 days,
+            transferrable: true
+        });
+        tiers[1] = Assemble.TicketTier({
+            name: "VIP",
+            price: 0.05 ether, 
+            maxSupply: 60, // Second tier: 60 tickets (total = 110)
+            sold: 0,
+            startSaleTime: block.timestamp,
+            endSaleTime: block.timestamp + 1 days,
+            transferrable: true
+        });
+
+        Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](1);
+        splits[0] = Assemble.PaymentSplit(alice, 10_000);
+
+        // Should revert with BadPayment error
+        vm.prank(alice);
+        vm.expectRevert(Assemble.BadPayment.selector);
+        assemble.createEvent(params, tiers, splits);
+    }
+
+    function test_Success_When_TierCapacityEqualsEventCapacity() public {
+        // Event with capacity of 100
+        Assemble.EventParams memory params = Assemble.EventParams({
+            title: "Exact-capacity Event",
+            description: "Testing exact capacity match",
+            imageUri: "ipfs://exact-capacity",
+            startTime: block.timestamp + 1 days,
+            endTime: block.timestamp + 2 days,
+            capacity: 100, // Total event capacity
+            latitude: 404052000,
+            longitude: -739979000,
+            venueName: "Test Venue",
+            visibility: Assemble.EventVisibility.PUBLIC
+        });
+
+        // Create tiers that sum exactly to capacity (40 + 60 = 100)
+        Assemble.TicketTier[] memory tiers = new Assemble.TicketTier[](2);
+        tiers[0] = Assemble.TicketTier({
+            name: "General",
+            price: 0.01 ether,
+            maxSupply: 40, // First tier: 40 tickets
+            sold: 0,
+            startSaleTime: block.timestamp,
+            endSaleTime: block.timestamp + 1 days,
+            transferrable: true
+        });
+        tiers[1] = Assemble.TicketTier({
+            name: "VIP",
+            price: 0.05 ether,
+            maxSupply: 60, // Second tier: 60 tickets (total = 100)
+            sold: 0,
+            startSaleTime: block.timestamp,
+            endSaleTime: block.timestamp + 1 days,
+            transferrable: true
+        });
+
+        Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](1);
+        splits[0] = Assemble.PaymentSplit(alice, 10_000);
+
+        // Should succeed
+        vm.prank(alice);
+        uint256 eventId = assemble.createEvent(params, tiers, splits);
+        
+        // Verify event was created successfully
+        assertTrue(eventId > 0);
+        (,, uint64 startTime, uint32 capacity,,,,,,,) = assemble.events(eventId);
+        assertEq(capacity, 100);
+    }
+
+    function test_Success_When_MultipleTierCapacitiesUnderEventCapacity() public {
+        // Event with capacity of 200
+        Assemble.EventParams memory params = Assemble.EventParams({
+            title: "Multi-tier Event",
+            description: "Testing multiple tiers under capacity",
+            imageUri: "ipfs://multi-tier",
+            startTime: block.timestamp + 1 days,
+            endTime: block.timestamp + 2 days,
+            capacity: 200, // Total event capacity
+            latitude: 404052000,
+            longitude: -739979000,
+            venueName: "Test Venue",
+            visibility: Assemble.EventVisibility.PUBLIC
+        });
+
+        // Create 3 tiers that sum to less than capacity (50 + 60 + 70 = 180 < 200)
+        Assemble.TicketTier[] memory tiers = new Assemble.TicketTier[](3);
+        tiers[0] = Assemble.TicketTier({
+            name: "Early Bird",
+            price: 0.01 ether,
+            maxSupply: 50, // First tier: 50 tickets
+            sold: 0,
+            startSaleTime: block.timestamp,
+            endSaleTime: block.timestamp + 1 days,
+            transferrable: true
+        });
+        tiers[1] = Assemble.TicketTier({
+            name: "General",
+            price: 0.03 ether,
+            maxSupply: 60, // Second tier: 60 tickets
+            sold: 0,
+            startSaleTime: block.timestamp,
+            endSaleTime: block.timestamp + 1 days,
+            transferrable: true
+        });
+        tiers[2] = Assemble.TicketTier({
+            name: "VIP",
+            price: 0.05 ether,
+            maxSupply: 70, // Third tier: 70 tickets (total = 180)
+            sold: 0,
+            startSaleTime: block.timestamp,
+            endSaleTime: block.timestamp + 1 days,
+            transferrable: true
+        });
+
+        Assemble.PaymentSplit[] memory splits = new Assemble.PaymentSplit[](1);
+        splits[0] = Assemble.PaymentSplit(alice, 10_000);
+
+        // Should succeed since 180 < 200
+        vm.prank(alice);
+        uint256 eventId = assemble.createEvent(params, tiers, splits);
+        
+        // Verify event was created successfully
+        assertTrue(eventId > 0);
+        (,, uint64 startTime, uint32 capacity,,,,,,,) = assemble.events(eventId);
+        assertEq(capacity, 200);
+        
+        // Verify we can purchase from all tiers
+        vm.deal(bob, 1 ether);
+        
+        // Buy from each tier
+        vm.prank(bob);
+        assemble.purchaseTickets{value: 0.01 ether}(eventId, 0, 1); // Early bird
+        
+        vm.prank(bob);
+        assemble.purchaseTickets{value: 0.03 ether}(eventId, 1, 1); // General
+        
+        vm.prank(bob);
+        assemble.purchaseTickets{value: 0.05 ether}(eventId, 2, 1); // VIP
+        
+        // Verify tier sold counts
+        (,,, uint256 sold0,,,) = assemble.ticketTiers(eventId, 0);
+        (,,, uint256 sold1,,,) = assemble.ticketTiers(eventId, 1);
+        (,,, uint256 sold2,,,) = assemble.ticketTiers(eventId, 2);
+        
+        assertEq(sold0, 1);
+        assertEq(sold1, 1);
+        assertEq(sold2, 1);
+    }
+
     function test_MaximumTicketQuantity() public {
         uint256 maxQuantity = assemble.MAX_TICKET_QUANTITY(); // 50
         uint256 eventId = _createEvent(0.01 ether, maxQuantity); // Set capacity to max quantity

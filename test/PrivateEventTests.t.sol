@@ -247,7 +247,7 @@ contract PrivateEventTests is Test {
         tiers[0] = Assemble.TicketTier({
             name: "Private Access",
             price: 0.1 ether,
-            maxSupply: 50,
+            maxSupply: 30,
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 1 days,
@@ -279,7 +279,7 @@ contract PrivateEventTests is Test {
         tiers[0] = Assemble.TicketTier({
             name: "General Access",
             price: 0.1 ether,
-            maxSupply: 100,
+            maxSupply: 15,
             sold: 0,
             startSaleTime: block.timestamp,
             endSaleTime: block.timestamp + 1 days,
