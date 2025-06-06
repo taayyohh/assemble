@@ -343,15 +343,18 @@ error ValidationError(); // Input validation failures
 
 | Operation | ETH Gas | ERC20 Gas |
 |-----------|---------|-----------|
-| Create Event | 495,398 | N/A |
-| Create Event + Location | 520,150 | N/A |
-| Purchase Tickets | 541,107 | 580,200 |
-| Purchase with Platform Fee | 565,850 | 605,100 |
-| Private Event Invitations | 90,746 | N/A |
-| Check-in Operations | 582,115 | N/A |
-| Social Operations | 75,673 - 169,672 | N/A |
-| ERC20 Withdrawals | N/A | 125,500 |
-| Location Queries | 15,200 | N/A |
+| Create Event | 391,143 | N/A |
+| Create Event + Location | 398,180 | N/A |
+| Purchase Tickets | 153,928 | 195,440 |
+| Purchase with Platform Fee | ~165,000 | ~210,000 |
+| Private Event Invitations | 71,758 | N/A |
+| Check-in Operations | 69,378 - 82,124 | N/A |
+| Social Operations (RSVP/Friends) | 24,243 - 78,604 | N/A |
+| ERC20 Tips | N/A | 117,041 |
+| ERC20 Withdrawals | N/A | 53,918 |
+| Location Queries | 12,545 | N/A |
+
+*Note: Gas usage measured on latest protocol version. Actual usage may vary based on transaction complexity, network conditions, and specific parameters used.*
 
 ## Integration Examples
 
