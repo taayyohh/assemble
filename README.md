@@ -360,16 +360,16 @@ error ValidationError(); // Input validation failures
 import { keccak256, toBytes } from 'viem';
 import { publicClient, walletClient } from './config'; // your viem client setup
 
-// Create event with location
+// Create event (NO ETH VALUE REQUIRED - creation is free)
 const tx = await walletClient.writeContract({
   address: ASSEMBLE_ADDRESS,
   abi: assembleAbi,
   functionName: 'createEvent',
-  args: [params, ticketTiers, paymentSplits], // params includes latitude/longitude
-  value: platformFee
+  args: [params, ticketTiers, paymentSplits] // params includes latitude/longitude
+  // NO value parameter - event creation is free!
 });
 
-// Purchase with USDC
+// Purchase tickets with USDC (platform fee charged here, not creation)
 await walletClient.writeContract({
   address: USDC_ADDRESS,
   abi: erc20Abi,
@@ -382,6 +382,15 @@ await walletClient.writeContract({
   abi: assembleAbi,
   functionName: 'purchaseTicketsERC20',
   args: [eventId, tierId, quantity, USDC_ADDRESS]
+});
+
+// Purchase with platform fee (2% to venue partner)
+await walletClient.writeContract({
+  address: ASSEMBLE_ADDRESS,
+  abi: assembleAbi,
+  functionName: 'purchaseTickets',
+  args: [eventId, tierId, quantity, venuePartnerAddress, 200], // 200 = 2%
+  value: ticketPrice
 });
 
 // Check venue credentials
@@ -436,6 +445,211 @@ const venueStats = {
     args: [organizer, credTokenId]
   }) > 0
 };
+```
+
+## Fee Structure
+
+### **Protocol Fees (Fixed)**
+- **Rate**: 0.5% (50 basis points) by default, maximum 10%
+- **Charged On**: All ticket purchases and tips
+- **Goes To**: Protocol treasury (`feeTo` address)
+- **Purpose**: Protocol maintenance and development
+
+### **Platform Fees (Optional)**
+- **Rate**: 0-5% (0-500 basis points) - set per transaction
+- **Charged On**: Ticket purchases and tips (when specified)
+- **Goes To**: Referrer/platform address specified in transaction
+- **Purpose**: Ecosystem growth, venue partnerships, influencer rewards
+
+## Fee Examples & Calculations
+
+### **Example 1: Basic Ticket Purchase (Protocol Fee Only)**
+```javascript
+// User buys 1 ticket for 0.1 ETH - NO platform fee
+await walletClient.writeContract({
+  address: ASSEMBLE_ADDRESS,
+  abi: assembleAbi,
+  functionName: 'purchaseTickets',
+  args: [eventId, 0, 1], // No referrer, no platform fee
+  value: parseEther('0.1') // 0.1 ETH
+});
+
+// Fee calculation:
+// Ticket price: 0.1 ETH
+// Protocol fee: 0.1 ETH × 0.5% = 0.0005 ETH (goes to protocol)
+// Net to organizer: 0.1 ETH - 0.0005 ETH = 0.0995 ETH
+```
+
+### **Example 2: Ticket Purchase with Platform Fee**
+```javascript
+// User buys 1 ticket for 0.1 ETH with 2% platform fee to venue partner
+await walletClient.writeContract({
+  address: ASSEMBLE_ADDRESS,
+  abi: assembleAbi,
+  functionName: 'purchaseTickets',
+  args: [eventId, 0, 1, venuePartnerAddress, 200], // 200 = 2% platform fee
+  value: parseEther('0.1')
+});
+
+// Fee calculation (order: Platform fee → Protocol fee → Event splits):
+// 1. Ticket price: 0.1 ETH
+// 2. Platform fee: 0.1 ETH × 2% = 0.002 ETH (goes to venue partner)
+// 3. Remaining: 0.1 ETH - 0.002 ETH = 0.098 ETH
+// 4. Protocol fee: 0.098 ETH × 0.5% = 0.00049 ETH (goes to protocol)
+// 5. Net to organizer: 0.098 ETH - 0.00049 ETH = 0.09751 ETH
+```
+
+### **Example 3: Event Tip with Platform Fee**
+```javascript
+// User tips 0.05 ETH with 1.5% platform fee to influencer
+await walletClient.writeContract({
+  address: ASSEMBLE_ADDRESS,
+  abi: assembleAbi,
+  functionName: 'tipEvent',
+  args: [eventId, influencerAddress, 150], // 150 = 1.5% platform fee
+  value: parseEther('0.05')
+});
+
+// Fee calculation:
+// 1. Tip amount: 0.05 ETH
+// 2. Platform fee: 0.05 ETH × 1.5% = 0.00075 ETH (goes to influencer)
+// 3. Remaining: 0.05 ETH - 0.00075 ETH = 0.04925 ETH
+// 4. Protocol fee: 0.04925 ETH × 0.5% = 0.00024625 ETH (goes to protocol)
+// 5. Net to event splits: 0.04925 ETH - 0.00024625 ETH = 0.04900375 ETH
+```
+
+### **Example 4: ERC20 Payment with Platform Fee**
+```javascript
+// User buys ticket with 100 USDC + 3% platform fee to venue
+await erc20Contract.writeContract({
+  functionName: 'approve',
+  args: [ASSEMBLE_ADDRESS, parseUnits('100', 6)] // USDC has 6 decimals
+});
+
+await walletClient.writeContract({
+  address: ASSEMBLE_ADDRESS,
+  abi: assembleAbi,
+  functionName: 'purchaseTicketsERC20',
+  args: [eventId, 0, 1, USDC_ADDRESS, venueAddress, 300] // 300 = 3%
+});
+
+// Fee calculation (USDC amounts):
+// 1. Ticket price: 100 USDC
+// 2. Platform fee: 100 USDC × 3% = 3 USDC (goes to venue)
+// 3. Remaining: 100 USDC - 3 USDC = 97 USDC
+// 4. Protocol fee: 97 USDC × 0.5% = 0.485 USDC (goes to protocol)
+// 5. Net to organizer: 97 USDC - 0.485 USDC = 96.515 USDC
+```
+
+### **Example 5: Multi-Split Event Revenue**
+```javascript
+// Event with payment splits: 60% organizer, 30% artist, 10% venue
+const paymentSplits = [
+  { recipient: organizerAddress, bps: 6000 }, // 60%
+  { recipient: artistAddress, bps: 3000 },   // 30%
+  { recipient: venueAddress, bps: 1000 }     // 10%
+];
+
+// User tips 1 ETH with 2% platform fee to promoter
+await walletClient.writeContract({
+  address: ASSEMBLE_ADDRESS,
+  abi: assembleAbi,
+  functionName: 'tipEvent',
+  args: [eventId, promoterAddress, 200], // 200 = 2%
+  value: parseEther('1.0')
+});
+
+// Fee calculation & distribution:
+// 1. Tip amount: 1.0 ETH
+// 2. Platform fee: 1.0 ETH × 2% = 0.02 ETH → promoterAddress
+// 3. Remaining: 1.0 ETH - 0.02 ETH = 0.98 ETH
+// 4. Protocol fee: 0.98 ETH × 0.5% = 0.0049 ETH → protocol treasury
+// 5. Net for splits: 0.98 ETH - 0.0049 ETH = 0.9751 ETH
+// 6. Distribution:
+//    - Organizer: 0.9751 ETH × 60% = 0.58506 ETH
+//    - Artist: 0.9751 ETH × 30% = 0.29253 ETH  
+//    - Venue: 0.9751 ETH × 10% = 0.09751 ETH
+```
+
+### **Example 6: Platform Fee for Ecosystem Partners**
+```javascript
+// Music venue gets 2% for hosting/promoting
+await walletClient.writeContract({
+  address: ASSEMBLE_ADDRESS,
+  abi: assembleAbi,
+  functionName: 'purchaseTickets',
+  args: [eventId, 0, 2, musicVenueAddress, 200], // 2 tickets, 2% to venue
+  value: parseEther('0.2') // 0.1 ETH per ticket
+});
+
+// Event discovery platform gets 1% for driving traffic
+await walletClient.writeContract({
+  address: ASSEMBLE_ADDRESS,
+  abi: assembleAbi,
+  functionName: 'tipEvent',
+  args: [eventId, eventPlatformAddress, 100], // 1% to platform
+  value: parseEther('0.1')
+});
+
+// Social media influencer gets 2.5% for promotion
+await walletClient.writeContract({
+  address: ASSEMBLE_ADDRESS,
+  abi: assembleAbi,
+  functionName: 'purchaseTickets',
+  args: [eventId, 1, 1, influencerAddress, 250], // 2.5% to influencer
+  value: parseEther('0.15')
+});
+```
+
+### **Reading Fee Information**
+```javascript
+// Check current protocol fee rate
+const protocolFeeBps = await publicClient.readContract({
+  address: ASSEMBLE_ADDRESS,
+  abi: assembleAbi,
+  functionName: 'protocolFeeBps'
+});
+console.log(`Protocol fee: ${protocolFeeBps / 100}%`); // e.g., "Protocol fee: 0.5%"
+
+// Check pending withdrawals (includes fees received)
+const pendingFees = await publicClient.readContract({
+  address: ASSEMBLE_ADDRESS,
+  abi: assembleAbi,
+  functionName: 'pendingWithdrawals',
+  args: [feeRecipientAddress]
+});
+
+// Check ERC20 fees pending
+const pendingUSDC = await publicClient.readContract({
+  address: ASSEMBLE_ADDRESS,
+  abi: assembleAbi,
+  functionName: 'pendingERC20Withdrawals',
+  args: [USDC_ADDRESS, feeRecipientAddress]
+});
+```
+
+### **Event Cancellation & Refunds**
+- **Creation Cost**: ✅ **FREE** - No fees to create events
+- **Cancellation**: Events can be cancelled before start time
+- **Refund Window**: 90 days after cancellation
+- **Full Refunds**: Users get back exactly what they paid for tickets/tips
+- **Protocol Fees**: Not refunded (already used for infrastructure)
+- **Platform Fees**: Not refunded (already paid to referrers)
+
+```javascript
+// Example: Event cancelled, user gets refund
+// User originally paid: 0.1 ETH for ticket
+// Platform fee: 0.002 ETH (already paid to venue partner - not refunded)
+// Protocol fee: 0.00049 ETH (already paid to protocol - not refunded)  
+// User refund: 0.1 ETH (full original ticket price returned)
+
+await walletClient.writeContract({
+  address: ASSEMBLE_ADDRESS,
+  abi: assembleAbi,
+  functionName: 'claimTicketRefund',
+  args: [cancelledEventId]
+});
+// User receives back: 0.1 ETH (their full ticket payment)
 ```
 
 ## Deployment
