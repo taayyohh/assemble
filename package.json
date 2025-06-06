@@ -1,5 +1,5 @@
 {
-  "name": "@imaginarylabs/assemble-sdk",
+  "name": "@imaginarylabs/assemble",
   "version": "0.1.0",
   "description": "TypeScript SDK for the Assemble Protocol - decentralized event management with social coordination",
   "type": "module",

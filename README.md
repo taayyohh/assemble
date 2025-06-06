@@ -357,41 +357,84 @@ error ValidationError(); // Input validation failures
 
 ### Frontend Integration
 ```javascript
+import { keccak256, toBytes } from 'viem';
+import { publicClient, walletClient } from './config'; // your viem client setup
+
 // Create event with location
-const tx = await assemble.createEvent(
-  params,  // includes latitude/longitude
-  ticketTiers,
-  paymentSplits,
-  { value: platformFee }
-);
+const tx = await walletClient.writeContract({
+  address: ASSEMBLE_ADDRESS,
+  abi: assembleAbi,
+  functionName: 'createEvent',
+  args: [params, ticketTiers, paymentSplits], // params includes latitude/longitude
+  value: platformFee
+});
 
 // Purchase with USDC
-await usdc.approve(assemble.address, ticketPrice);
-await assemble.purchaseTicketsERC20(eventId, tierId, quantity, usdc.address);
+await walletClient.writeContract({
+  address: USDC_ADDRESS,
+  abi: erc20Abi,
+  functionName: 'approve',
+  args: [ASSEMBLE_ADDRESS, ticketPrice]
+});
+
+await walletClient.writeContract({
+  address: ASSEMBLE_ADDRESS,
+  abi: assembleAbi,
+  functionName: 'purchaseTicketsERC20',
+  args: [eventId, tierId, quantity, USDC_ADDRESS]
+});
 
 // Check venue credentials
-const venueHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(venueName));
-const credTokenId = await assemble.generateTokenId(4, 0, venueHash, 0); // TokenType.VENUE_CRED = 4
-const hasCredential = await assemble.balanceOf(organizer, credTokenId);
+const venueHash = keccak256(toBytes(venueName));
+const credTokenId = await publicClient.readContract({
+  address: ASSEMBLE_ADDRESS,
+  abi: assembleAbi,
+  functionName: 'generateTokenId',
+  args: [4, 0, venueHash, 0] // TokenType.VENUE_CRED = 4
+});
+const hasCredential = await publicClient.readContract({
+  address: ASSEMBLE_ADDRESS,
+  abi: assembleAbi,
+  functionName: 'balanceOf',
+  args: [organizer, credTokenId]
+});
 ```
 
 ### API Integration
 ```javascript
+import { keccak256, toBytes } from 'viem';
+import { publicClient } from './config';
+
 // Location-based event discovery
 const events = await fetchEventsNearLocation(latitude, longitude, radiusKm);
 
 // Multi-currency price display
 const prices = {
-  eth: await assemble.calculatePrice(eventId, tierId, quantity),
+  eth: await publicClient.readContract({
+    address: ASSEMBLE_ADDRESS,
+    abi: assembleAbi,
+    functionName: 'calculatePrice',
+    args: [eventId, tierId, quantity]
+  }),
   usdc: await getUSDCPrice(eventId, tierId, quantity),
   dai: await getDAIPrice(eventId, tierId, quantity)
 };
 
 // Venue reputation display
-const venueHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(venueName));
+const venueHash = keccak256(toBytes(venueName));
 const venueStats = {
-  eventCount: await assemble.venueEventCount(venueHash),
-  hasCredential: await assemble.balanceOf(organizer, credTokenId) > 0
+  eventCount: await publicClient.readContract({
+    address: ASSEMBLE_ADDRESS,
+    abi: assembleAbi,
+    functionName: 'venueEventCount',
+    args: [venueHash]
+  }),
+  hasCredential: await publicClient.readContract({
+    address: ASSEMBLE_ADDRESS,
+    abi: assembleAbi,
+    functionName: 'balanceOf',
+    args: [organizer, credTokenId]
+  }) > 0
 };
 ```
 
