@@ -94,8 +94,8 @@ forge test --match-contract "VenueSystem"
 # Start local testnet
 anvil
 
-# Deploy with vanity address
-forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast
+# Deploy contracts for local testing (see test files for examples)
+forge test
 ```
 
 ## Contract API
@@ -659,7 +659,7 @@ await walletClient.writeContract({
 
 ### Live Deployments
 
-Assemble Protocol is deployed with **identical vanity addresses** across multiple networks using CREATE2:
+Assemble Protocol is deployed with **identical vanity addresses** across 8 networks:
 
 **Mainnet (Chain ID: 1):**
 - **Assemble**: `0x000000000a020d45fFc5cfcF7B28B5020ddd6a85` ✅ [Verified](https://etherscan.io/address/0x000000000a020d45fFc5cfcF7B28B5020ddd6a85)
@@ -673,82 +673,27 @@ Assemble Protocol is deployed with **identical vanity addresses** across multipl
 - **Assemble**: `0x000000000a020d45fFc5cfcF7B28B5020ddd6a85` ✅ [Verified](https://basescan.org/address/0x000000000a020d45fFc5cfcF7B28B5020ddd6a85)
 - **SocialLibrary**: `0xebE033f26d5CAb84F5C174C882e2e036F59FAD55` ✅ [Verified](https://basescan.org/address/0xebE033f26d5CAb84F5C174C882e2e036F59FAD55)
 
-**Base Sepolia Testnet (Chain ID: 84532):**
+**Base Sepolia (Chain ID: 84532):**
 - **Assemble**: `0x000000000a020d45fFc5cfcF7B28B5020ddd6a85` ✅ [Verified](https://sepolia.basescan.org/address/0x000000000a020d45fFc5cfcF7B28B5020ddd6a85)
-- **SocialLibrary**: `0xebE033f26d5CAb84F5C174C882e2e036F59FAD55` ⚠️ *Embedded in main contract*
+- **SocialLibrary**: `0xebE033f26d5CAb84F5C174C882e2e036F59FAD55` ✅ [Verified](https://sepolia.basescan.org/address/0xebE033f26d5CAb84F5C174C882e2e036F59FAD55)
 
-**Optimism Mainnet (Chain ID: 10):**
+**Optimism (Chain ID: 10):**
 - **Assemble**: `0x000000000a020d45fFc5cfcF7B28B5020ddd6a85` ✅ [Verified](https://optimistic.etherscan.io/address/0x000000000a020d45fFc5cfcF7B28B5020ddd6a85)
-- **SocialLibrary**: ⚠️ *Embedded in main contract*
+- **SocialLibrary**: `0xebE033f26d5CAb84F5C174C882e2e036F59FAD55` ✅ [Verified](https://optimistic.etherscan.io/address/0xebE033f26d5CAb84F5C174C882e2e036F59FAD55)
 
-### Deploying to Other Chains
+**Arbitrum One (Chain ID: 42161):**
+- **Assemble**: `0x000000000a020d45fFc5cfcF7B28B5020ddd6a85` ✅ [Verified](https://arbiscan.io/address/0x000000000a020d45fFc5cfcF7B28B5020ddd6a85)
+- **SocialLibrary**: `0xebE033f26d5CAb84F5C174C882e2e036F59FAD55` ✅ [Verified](https://arbiscan.io/address/0xebE033f26d5CAb84F5C174C882e2e036F59FAD55)
 
-The protocol can be deployed to any EVM-compatible chain while maintaining the same vanity addresses using CREATE2.
+**Polygon (Chain ID: 137):**
+- **Assemble**: `0x000000000a020d45fFc5cfcF7B28B5020ddd6a85` ✅ [Deployed](https://polygonscan.com/address/0x000000000a020d45fFc5cfcF7B28B5020ddd6a85) *
+- **SocialLibrary**: `0xebE033f26d5CAb84F5C174C882e2e036F59FAD55` ✅ [Deployed](https://polygonscan.com/address/0xebE033f26d5CAb84F5C174C882e2e036F59FAD55) *
 
-#### Prerequisites
-```bash
-# Install dependencies
-forge install
+**Zora (Chain ID: 7777777):**
+- **Assemble**: `0x000000000a020d45fFc5cfcF7B28B5020ddd6a85` ✅ [Verified](https://explorer.zora.energy/address/0x000000000a020d45fFc5cfcF7B28B5020ddd6a85)
+- **SocialLibrary**: `0xebE033f26d5CAb84F5C174C882e2e036F59FAD55` ✅ [Verified](https://explorer.zora.energy/address/0xebE033f26d5CAb84F5C174C882e2e036F59FAD55)
 
-# Set environment variables
-export PRIVATE_KEY="your_private_key"
-export ETHERSCAN_API_KEY="your_etherscan_api_key"  # For most chains
-export BASE_RPC_URL="your_base_rpc_url"           # Example for Base
-export BASESCAN_API_KEY="your_basescan_api_key"   # Example for Base verification
-```
-
-#### Deployment Process
-```bash
-# 1. Deploy SocialLibrary using native CREATE2
-forge script script/SimpleCreate2.s.sol --rpc-url $RPC_URL --broadcast
-
-# 2. Deploy Assemble contract with same vanity address
-forge script script/SimpleCreate2.s.sol --rpc-url $RPC_URL --broadcast
-
-# 3. Verify contracts on block explorer
-forge verify-contract <CONTRACT_ADDRESS> <CONTRACT_NAME> --chain-id <CHAIN_ID> --etherscan-api-key $API_KEY
-```
-
-#### Key Requirements
-- **Native CREATE2**: Use Solidity's `new Contract{salt: salt}()` syntax for deterministic deployments
-- **Library Linking**: SocialLibrary must be deployed first and linked during Assemble deployment  
-- **Constructor**: Assemble takes a single parameter (`address _feeTo`)
-- **Verification**: Each chain requires its specific block explorer API key
-
-### Base Deployment Example
-```bash
-# Environment setup
-export BASE_RPC_URL="https://mainnet.base.org"
-export BASESCAN_API_KEY="your_basescan_api_key"
-
-# Deploy with verification
-forge script script/SimpleCreate2.s.sol \
-  --rpc-url $BASE_RPC_URL \
-  --private-key $PRIVATE_KEY \
-  --libraries src/libraries/SocialLibrary.sol:SocialLibrary:0xebE033f26d5CAb84F5C174C882e2e036F59FAD55 \
-  --broadcast
-
-# Verify both contracts
-forge verify-contract 0xebE033f26d5CAb84F5C174C882e2e036F59FAD55 \
-  src/libraries/SocialLibrary.sol:SocialLibrary \
-  --chain-id 8453 --etherscan-api-key $BASESCAN_API_KEY
-
-forge verify-contract 0x000000000a020d45fFc5cfcF7B28B5020ddd6a85 \
-  src/Assemble.sol:Assemble \
-  --chain-id 8453 \
-  --constructor-args $(cast abi-encode "constructor(address)" 0x1481ECEaBEb85124A82793CFf46FFA5fbFB1f3bF) \
-  --libraries src/libraries/SocialLibrary.sol:SocialLibrary:0xebE033f26d5CAb84F5C174C882e2e036F59FAD55 \
-  --etherscan-api-key $BASESCAN_API_KEY
-```
-
-### Local Development
-```bash
-# Start local testnet
-anvil
-
-# Deploy locally
-forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast
-```
+*\* Verification failed due to foundry bug #3507 with via_ir compiler setting on PolygonScan*
 
 ## Contributing
 
@@ -771,7 +716,7 @@ forge coverage
 
 # Deploy locally
 anvil &
-forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast
+forge test
 ```
 
 ## License
