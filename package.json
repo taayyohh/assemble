@@ -1,67 +1,46 @@
 {
   "name": "@imaginarylabs/assemble",
-  "version": "0.1.0",
-  "description": "TypeScript SDK for the Assemble Protocol - decentralized event management with social coordination",
-  "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
-    },
-    "./react": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
-    }
-  },
+  "version": "0.1.1",
+  "description": "Assemble Protocol - Decentralized event management smart contracts with social coordination features",
+  "main": "./out/Assemble.sol/Assemble.json",
   "files": [
-    "dist",
-    "src",
+    "src/Assemble.sol",
+    "src/libraries",
+    "out/Assemble.sol/Assemble.json",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
-    "type-check": "tsc --noEmit",
-    "test": "vitest run",
-    "test:unit": "vitest run test/unit/SDK.test.ts test/integration/build-validation.test.ts",
-    "test:watch": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage",
-    "test:anvil": "vitest run test/**/*.test.ts",
-    "lint": "eslint src --ext .ts,.tsx",
-    "lint:fix": "eslint src --ext .ts,.tsx --fix",
-    "prepublishOnly": "pnpm build"
+    "build": "forge build",
+    "test": "forge test",
+    "test:verbose": "forge test -vvv",
+    "deploy:local": "forge script script/Deploy.s.sol --fork-url http://localhost:8545 --broadcast",
+    "deploy:sepolia": "forge script script/Deploy.s.sol --rpc-url $SEPOLIA_RPC_URL --broadcast --verify",
+    "clean": "forge clean"
   },
   "keywords": [
     "ethereum",
-    "web3",
+    "web3", 
+    "solidity",
+    "smart-contracts",
     "events",
     "tickets",
     "blockchain",
     "social",
-    "sdk",
-    "typescript",
-    "viem",
-    "assemble",
     "erc6909",
-    "smart-contracts",
-    "multichain"
+    "foundry",
+    "multichain",
+    "protocol"
   ],
   "author": "Imaginary Labs",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/taayyohh/assemble-protocol.git",
-    "directory": "assemble-sdk"
+    "url": "git+https://github.com/taayyohh/assemble.git",
+    "directory": "."
   },
   "bugs": {
-    "url": "https://github.com/taayyohh/assemble-protocol/issues"
+    "url": "https://github.com/taayyohh/assemble/issues"
   },
   "homepage": "https://assemble.build",
   "engines": {
@@ -69,35 +48,5 @@
   },
   "publishConfig": {
     "access": "public"
-  },
-  "peerDependencies": {
-    "@tanstack/react-query": "^5.0.0",
-    "react": "^18.0.0",
-    "viem": "^2.0.0"
-  },
-  "peerDependenciesMeta": {
-    "@tanstack/react-query": {
-      "optional": true
-    },
-    "react": {
-      "optional": true
-    }
-  },
-  "dependencies": {
-    "abitype": "^1.0.0",
-    "viem": "^2.30.0",
-    "zod": "^3.25.0"
-  },
-  "devDependencies": {
-    "@types/react": "^18.3.0",
-    "@types/react-dom": "^18.3.0",
-    "@typescript-eslint/eslint-plugin": "^6.21.0",
-    "@typescript-eslint/parser": "^6.21.0",
-    "@vitest/coverage-v8": "^3.1.4",
-    "@vitest/ui": "^3.1.4",
-    "eslint": "^8.57.0",
-    "tsup": "^8.5.0",
-    "typescript": "^5.8.0",
-    "vitest": "^3.1.4"
   }
 } 

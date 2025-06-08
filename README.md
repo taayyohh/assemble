@@ -695,9 +695,6 @@ Assemble Protocol is deployed with **identical vanity addresses** across 8 netwo
 
 *\* Verification failed due to foundry bug #3507 with via_ir compiler setting on PolygonScan*
 
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING.md) for details.
 
 ### Development Setup
 ```bash
